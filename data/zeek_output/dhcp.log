@@ -1,0 +1,11 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	dhcp
+#open	2026-09-05-01-44-04
+#fields	ts	uids	client_addr	server_addr	mac	host_name	client_fqdn	domain	requested_addr	assigned_addr	lease_time	client_message	server_message	msg_types	duration
+#types	time	set[string]	addr	addr	string	string	string	string	addr	addr	interval	string	string	vector[string]	interval
+1786241252.442433	C7sBwF3Qx4WAEyxBlh,CR57NA1yXYEXaskcm2	172.16.8.53	172.16.8.8	00:1b:21:8f:35:27	DESKTOP-A8WD4E2	DESKTOP-A8WD4E2.firsttolast.tech	-	172.16.8.53	172.16.8.53	691200.000000	-	-	DISCOVER,OFFER,REQUEST,ACK	0.002152
+1786241292.418036	C7sBwF3Qx4WAEyxBlh,CR57NA1yXYEXaskcm2	172.16.8.49	172.16.8.8	00:12:f0:28:d4:34	DESKTOP-5NLV63K	DESKTOP-5NLV63K.firsttolast.tech	-	172.16.8.49	172.16.8.49	691200.000000	-	-	DISCOVER,OFFER,REQUEST,ACK	0.008669
+#close	2026-09-05-01-44-04

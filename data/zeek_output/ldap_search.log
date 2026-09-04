@@ -1,0 +1,66 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	ldap_search
+#open	2026-09-05-01-44-04
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	message_id	scope	deref_aliases	base_object	result_count	result	diagnostic_message	filter	attributes
+#types	time	string	addr	port	addr	port	int	string	string	string	count	string	string	string	vector[string]
+1786241252.644580	CF5lzB1lIX48GAZ4V8	172.16.8.53	62759	172.16.8.8	389	1	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241252.700802	Cya6OC3od5HPKbmhKd	172.16.8.53	49667	172.16.8.8	389	2	base	never	-	1	success	-	(objectclass=*)	-
+1786241252.721712	CbAGlW2w2zCdC3ASgk	172.16.8.53	62760	172.16.8.8	389	4	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241252.880111	CKqX0KBagBzEtsvfk	172.16.8.53	59443	172.16.8.8	389	7	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241253.675966	C7JNRDSaLgmtOPZf5	172.16.8.53	60065	172.16.8.8	389	1	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241254.978202	COffaE2Kg9r1QTVRDa	172.16.8.53	58249	172.16.8.8	389	1	base	never	-	1	success	-	(&(&(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(User=DESKTOP-A8WD4E2$))(AAC=80:00:00:00))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241254.987351	COffaE2Kg9r1QTVRDa	172.16.8.53	58249	172.16.8.8	389	2	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241254.987662	COffaE2Kg9r1QTVRDa	172.16.8.53	58249	172.16.8.8	389	3	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241254.987752	COffaE2Kg9r1QTVRDa	172.16.8.53	58249	172.16.8.8	389	4	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241254.988047	COffaE2Kg9r1QTVRDa	172.16.8.53	58249	172.16.8.8	389	5	base	never	-	1	success	-	(&(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainSid=S-1-5-21-1320389422-2284452533-1497837395))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241254.992729	COffaE2Kg9r1QTVRDa	172.16.8.53	58249	172.16.8.8	389	6	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241255.160624	C8tcTu2QtlRjWhafhj	172.16.8.53	58250	172.16.8.8	389	7	base	never	-	1	success	-	(&(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainSid=S-1-5-21-1320389422-2284452533-1497837395))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241255.298464	CZBGZU1MHhy0sBRoN1	172.16.8.53	49702	172.16.8.8	389	8	base	never	-	1	success	-	(objectclass=*)	-
+1786241255.336343	CFR3db2ygVhhXma59j	172.16.8.53	62439	172.16.8.8	389	13	base	never	-	1	success	-	(&(&(&(DnsDomain=ForestDnsZones.firsttolast.tech)(Host=DESKTOP-A8WD4E2))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241255.387123	CfxShb1r04szpiFqe4	172.16.8.53	49703	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241255.437286	CFR3db2ygVhhXma59j	172.16.8.53	62439	172.16.8.8	389	14	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241255.444932	CFR3db2ygVhhXma59j	172.16.8.53	62439	172.16.8.8	389	15	base	never	-	1	success	-	(&(&(&(DnsDomain=DomainDnsZones.firsttolast.tech)(Host=DESKTOP-A8WD4E2))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241256.448732	CLLIkJ2641ci8tr4Ff	172.16.8.53	60050	172.16.8.8	389	18	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241256.586293	CEPVvF1eV55xGSsY56	172.16.8.53	60051	172.16.8.8	389	19	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241256.806025	CmfYLx4I8DyN7p33h	172.16.8.53	60053	172.16.8.8	389	20	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241256.920795	Ck3SWQ1g5Yy2s8ZRxc	172.16.8.53	49717	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241263.219654	CCcDCp3ENurduHXe2	172.16.8.53	49721	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241265.142883	CE9GxD3839hsLEjkg9	172.16.8.53	64753	172.16.8.8	389	21	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241292.483610	CzwUzx3doP1uZcFDgb	172.16.8.49	60991	172.16.8.8	389	1	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241292.602164	CJqRQ4uioMwHuCKP1	172.16.8.49	49667	172.16.8.8	389	2	base	never	-	1	success	-	(objectclass=*)	-
+1786241292.602776	CCqYqh25P4bEQVIFS7	172.16.8.49	62641	172.16.8.8	389	3	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241293.757136	CRUVH536Bnt5AJoluk	172.16.8.49	62005	172.16.8.8	389	1	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241294.806530	CECQB54vPrqyvAoCi9	172.16.8.49	59725	172.16.8.8	389	1	base	never	-	1	success	-	(&(&(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(User=DESKTOP-5NLV63K$))(AAC=80:00:00:00))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241294.807302	CECQB54vPrqyvAoCi9	172.16.8.49	59725	172.16.8.8	389	2	base	never	-	1	success	-	(&(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainSid=S-1-5-21-1320389422-2284452533-1497837395))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241294.831809	CECQB54vPrqyvAoCi9	172.16.8.49	59725	172.16.8.8	389	3	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241294.861854	CECQB54vPrqyvAoCi9	172.16.8.49	59725	172.16.8.8	389	4	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241294.984579	CkEz5J1zzi6eG2liud	172.16.8.49	59726	172.16.8.8	389	5	base	never	-	1	success	-	(&(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainSid=S-1-5-21-1320389422-2284452533-1497837395))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241295.137744	C24Hf822Ky9N7jkHWg	172.16.8.49	49693	172.16.8.8	389	6	base	never	-	1	success	-	(objectclass=*)	-
+1786241295.154347	CKpVxf23lS3dEWpSAb	172.16.8.49	64110	172.16.8.8	389	11	base	never	-	1	success	-	(&(&(&(DnsDomain=ForestDnsZones.firsttolast.tech)(Host=DESKTOP-5NLV63K))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241295.281470	CMWGTx4fsUuXjgaCCk	172.16.8.49	64112	172.16.8.8	389	12	base	never	-	1	success	-	(&(&(&(DnsDomain=DomainDnsZones.firsttolast.tech)(Host=DESKTOP-5NLV63K))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241295.313311	CTRxmG3NfrGAoEjHw9	172.16.8.49	49695	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241295.390551	CoFjHUcFMFT105Qn6	172.16.8.49	64113	172.16.8.8	389	13	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241295.391963	CoFjHUcFMFT105Qn6	172.16.8.49	64113	172.16.8.8	389	14	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241296.486108	CbXKtGTsHNKF8U025	172.16.8.49	62186	172.16.8.8	389	17	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241296.860779	CS6ChzTRMc9UVVVl	172.16.8.49	62188	172.16.8.8	389	18	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241296.979648	CnzqlR2WPDTfKEfJ3e	172.16.8.49	49707	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241303.227119	CAuvU5l7BZIkepwIi	172.16.8.49	49711	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241307.442233	C7RzaQ3qBA64kVnAJ9	172.16.8.49	52643	172.16.8.8	389	19	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x20000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241326.338079	CUYUOZ2WHOnW6NC4ok	172.16.8.53	63076	172.16.8.8	389	22	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-A8WD4E2))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-A8WD4E2.firsttolast.tech))	-
+1786241326.485018	CS2l0t1fpi5tjKI72j	172.16.8.53	50903	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241356.277983	Cag1SIs9vLfdaQU68	172.16.8.53	54041	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241357.297538	Cu1LzM3b7Gu3nFLnUb	172.16.8.53	54046	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241368.425851	C85e9S3DbN5m5XVrP8	172.16.8.49	61781	172.16.8.8	389	20	base	never	-	1	success	-	(&(&(&(&(DnsDomain=firsttolast.tech.)(Host=DESKTOP-5NLV63K))(DomainGuid=8fcf81a2-8e74-4f1b-b582-a7efe2d27720))(NtVer=0x00000016))(DnsHostName=DESKTOP-5NLV63K.firsttolast.tech))	-
+1786241368.550290	CrQJUX3aFbVNcV2ogi	172.16.8.49	51031	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241382.461701	CQA54n4iTkdLBDOj1j	172.16.8.49	52051	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241383.343497	C6ZQRc21mhkiMmo6X6	172.16.8.49	52056	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241568.871312	CTHZZi2YzkBRASiJAf	172.16.8.53	53950	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241597.210811	CaiUMf4EocuUBQ5Ab3	172.16.8.53	53954	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241610.681794	C0UNDc3JvZa7ZGD8tb	172.16.8.49	54458	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241844.319638	Cb3QO4e3r5vXUSEka	172.16.8.53	51135	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786241854.187136	CMTQFK1TmDp6e8kp6f	172.16.8.49	54537	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+1786242092.521021	CVRZCY1whNJqpmeb09	172.16.8.53	51147	172.16.8.8	389	1	base	never	-	1	success	-	(objectclass=*)	-
+#close	2026-09-05-01-44-04

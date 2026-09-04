@@ -1,0 +1,19 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	quic
+#open	2026-09-05-01-44-04
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	version	client_initial_dcid	client_scid	server_scid	server_name	client_protocol	history
+#types	time	string	addr	port	addr	port	string	string	string	string	string	string	string
+1786241271.969078	CxXPxa26r3p1Jt8Omi	172.16.8.53	64116	23.33.29.211	443	1	5a0f02f97d62d728	(empty)	19663c9778004b2b	www.bing.com	h3	IISiiishhhhIHHHOOOhoooOoooOOo
+1786241277.614017	ChW9iGPdmgZlqkQ3j	172.16.8.53	55596	23.33.29.211	443	1	2835bca23cf0909e	(empty)	282a709b58004b2b	www.bing.com	h3	IISiiishIHHOOOhoooOo
+1786241313.903713	C7knyG9nqGL2ZwNP4	172.16.8.49	62638	23.33.29.206	443	1	45a755079f129706	(empty)	37eaa67b28004b2b	www.bing.com	h3	IISiiishhhhHHHOoooOOoooOO
+1786241319.420183	C5uSVl2tqlPfmBYPc	172.16.8.49	51681	23.33.29.206	443	1	74ee400af4f5e741	(empty)	032ed8c802004b2b	www.bing.com	h3	IISiiishIHHOOOooooOOo
+1786241394.001205	CDP79j4RaVKJyqMIQc	172.16.8.53	60499	172.64.154.167	443	1	d765eb14c7e7d3ba	(empty)	01cd1ef0339f6f32cecedef0649f5c2036bee255	th.bing.com	h3	IISixiisxhhhhhIHHHHOoooOO
+1786241392.986439	CleTAt1efLDF7mt9I5	172.16.8.53	49752	23.200.156.216	443	1	0b4ffc2bea209282	(empty)	028284f74fc03a2b	img-s-msn-com.akamaized.net	h3	IISiiishhhHHHOoooOOOooO
+1786241435.028775	ClN33r4SmK63ev4wzh	172.16.8.49	54735	104.18.33.89	443	1	f9629d047efc662d	(empty)	01af6222904fa439ecaf6c20484f886c2378818c	th.bing.com	h3	IISixiisxhhhhhIHHHHOoooOO
+1786241435.136230	CbhNjhWkem0En5lyb	172.16.8.49	63123	23.33.29.213	443	1	78fcfc372b1c1929	(empty)	0c62b98440004b2b	www.bing.com	h3	IISiiIishhhhHHHOOOOihooooOooOoOo
+1786241435.029431	CyveJl1VW2WhtksHO6	172.16.8.49	52902	23.200.156.216	443	1	23f1cb634cf316f7	(empty)	374e52e324c03a2b	img-s-msn-com.akamaized.net	h3	IISiiishhhHHHOoooOOo
+1786241884.478664	Cg7Ehe3cOzqYzfe32c	172.16.8.49	61967	23.33.29.197	443	1	19336e7d5522c7af	(empty)	24a0926e70004b2b	www.bing.com	h3	IISiiishhhhHHHOOoooOo
+#close	2026-09-05-01-44-04

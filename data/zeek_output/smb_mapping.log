@@ -1,0 +1,18 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	smb_mapping
+#open	2026-09-05-01-44-04
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	path	service	native_file_system	share_type
+#types	time	string	addr	port	addr	port	string	string	string	string
+1786241255.156536	CWtcUNn5ZLr5CLDL1	172.16.8.53	49671	172.16.8.8	445	\\\\FIRSTTOLAST-DC.firsttolast.tech\\IPC$	-	-	PIPE
+1786241255.580389	CWtcUNn5ZLr5CLDL1	172.16.8.53	49671	172.16.8.8	445	\\\\FIRSTTOLAST-DC.firsttolast.tech\\sysvol	-	-	DISK
+1786241265.306086	CWtcUNn5ZLr5CLDL1	172.16.8.53	49671	172.16.8.8	445	\\\\FIRSTTOLAST-DC.firsttolast.tech\\IPC$	-	-	PIPE
+1786241265.668201	CRvtXv240oqGtudmug	172.16.8.53	49736	172.16.8.8	445	\\\\FIRSTTOLAST-DC\\Shared	-	-	DISK
+1786241295.022937	CCTuI22XQ0zsmkDHq1	172.16.8.49	49670	172.16.8.8	445	\\\\FIRSTTOLAST-DC.firsttolast.tech\\IPC$	-	-	PIPE
+1786241295.602640	CCTuI22XQ0zsmkDHq1	172.16.8.49	49670	172.16.8.8	445	\\\\FIRSTTOLAST-DC.firsttolast.tech\\sysvol	-	-	DISK
+1786241307.558173	CCTuI22XQ0zsmkDHq1	172.16.8.49	49670	172.16.8.8	445	\\\\FIRSTTOLAST-DC.firsttolast.tech\\IPC$	-	-	PIPE
+1786241307.820987	C4xoWP1lGfKykac8X9	172.16.8.49	49728	172.16.8.8	445	\\\\FIRSTTOLAST-DC\\Shared	-	-	DISK
+1786241541.817222	C4xoWP1lGfKykac8X9	172.16.8.49	49728	172.16.8.8	445	\\\\FIRSTTOLAST-DC\\IPC$	-	-	PIPE
+#close	2026-09-05-01-44-04
