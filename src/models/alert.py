@@ -1,9 +1,11 @@
 from pydantic import BaseModel
-
+from typing import Optional
 
 class Alert(BaseModel):
-    alert_name: str
+    rule_name: str
     severity: str
+    src_ip: Optional[str] = None
+    dst_ip: Optional[str] = None
+    domain: Optional[str] = None
     description: str
-
-    src_ip: str
+    confidence: int

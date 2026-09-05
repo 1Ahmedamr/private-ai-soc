@@ -1,27 +1,30 @@
-import json
+# src/ingestion/windows_parser.py
+
+from src.models.event_schema import NormalizedEvent, EventSource, EventType, Severity
+from datetime import datetime
 
 
-from src.models.security_event import SecurityEvent
-from src.ingestion.event_mapper import WINDOWS_EVENT_TYPES
-
-
-def parse_windows_event(file_path: str):
-
-    with open(file_path, "r") as f:
-        data = json.load(f)
-
-    event = SecurityEvent(
-        timestamp=data["timestamp"],
-        source="windows",
-        event_id=data["event_id"],
-        event_type=WINDOWS_EVENT_TYPES.get(
-    data["event_id"],
-    "unknown"
-),
-        username=data.get("username"),
-        src_ip=data.get("src_ip"),
+def parse_windows_4625(raw_event: dict) -> NormalizedEvent:
+    """
+    يحول Windows Event ID 4625 (Failed Logon) للـcommon schema.
+    """
+    return NormalizedEvent(
+        timestamp=datetime.fromisoformat(raw_event["timestamp"]),
+        source=EventSource.WINDOWS,
+        event_type=EventType.AUTHENTICATION,
+        host=raw_event.get("host"),
+        user=raw_event.get("username"),
+        src_ip=raw_event.get("src_ip"),
+        event_id=str(raw_event.get("event_id", "4625")),
         status="failure",
-        raw_data=data,
+        severity=Severity.MEDIUM,
+        raw_data=raw_event,
     )
 
-    return event
+
+def parse_windows_events(raw_events: list[dict]) -> list[NormalizedEvent]:
+    """
+    تاخد list من raw Windows events وترجع list من NormalizedEvent.
+    كل event لوحده بيتعالج بـparse_windows_4625 (حاليًا القاعدة الوحيدة عندنا).
+    """
+    return [parse_windows_4625(raw) for raw in raw_events]
