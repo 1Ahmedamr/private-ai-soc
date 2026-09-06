@@ -39,6 +39,12 @@ MITRE_TECHNIQUES: Dict[str, MitreTechnique] = {
         tactic="Defense Evasion, Persistence, Privilege Escalation, Initial Access",
         url="https://attack.mitre.org/techniques/T1078/",
     ),
+        "T1046": MitreTechnique(
+        technique_id="T1046",
+        name="Network Service Discovery",
+        tactic="Discovery",
+        url="https://attack.mitre.org/techniques/T1046/",
+    ),
 }
 
 

@@ -5,7 +5,7 @@ from src.models.event_schema import NormalizedEvent
 from src.models.detection_schema import DetectionResult
 from src.detection.rules.failed_login import detect_failed_login
 from src.detection.rules.brute_force import detect_brute_force
-
+from src.detection.rules.port_scan import detect_port_scan
 
 
 class DetectionEngine:
@@ -32,12 +32,15 @@ class DetectionEngine:
         return results
 
     def run_batch_rules(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
-        """يشغل القواعد اللي محتاجة تشوف مجموعة events مع بعض (زي brute force)."""
         results = []
 
         brute_force_result = detect_brute_force(events)
         if brute_force_result.triggered:
             results.append(brute_force_result)
+
+        port_scan_result = detect_port_scan(events)
+        if port_scan_result.triggered:
+            results.append(port_scan_result)
 
         return results
 

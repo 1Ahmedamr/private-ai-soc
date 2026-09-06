@@ -58,6 +58,7 @@ class NormalizedEvent(BaseModel):
     process: Optional[str] = None
     command: Optional[str] = None
     status: Optional[Literal["success", "failure", "unknown"]] = "unknown"
+    conn_state: Optional[str] = None   # Zeek connection state (e.g. "S0", "SF", "REJ")
 
     # --- Metadata ---
     severity: Severity = Severity.INFO
