@@ -131,3 +131,69 @@ def test_different_users_create_separate_incidents():
 
     # المفروض 2 incidents منفصلين - لأن الـcorrelation key مختلف
     assert store.count() == 2
+
+from src.models.incident_schema import IncidentStatus
+
+
+def test_relevant_events_only_are_stored():
+    """
+    Verifies the fix: incident should only contain events matching
+    its correlation key, not unrelated events from other users.
+    """
+    store = IncidentStore()
+    engine = IncidentEngine(store)
+
+    admin_events = [make_event(user="admin") for _ in range(3)]
+    other_user_event = make_event(user="john")
+    mixed_batch = admin_events + [other_user_event]
+
+    detections = [make_detection(severity=Severity.HIGH)]
+    incidents = engine.process(mixed_batch, detections)
+
+    incident = incidents[0]
+    assert len(incident.events) == 3
+    assert all(e.user == "admin" for e in incident.events)
+
+
+def test_closed_incident_reopens_within_window():
+    store = IncidentStore()
+    engine = IncidentEngine(store)
+
+    base_time = datetime(2026, 9, 1, 10, 0, 0)
+    events_1 = [make_event(user="admin", ts=base_time)]
+    detections = [make_detection(severity=Severity.HIGH)]
+
+    incidents = engine.process(events_1, detections)
+    incident = incidents[0]
+    incident.status = IncidentStatus.CLOSED
+    store.save(incident)
+
+    # New activity 10 hours later - within the 48h reopen window
+    events_2 = [make_event(user="admin", ts=base_time + timedelta(hours=10))]
+    incidents_2 = engine.process(events_2, detections)
+
+    assert store.count() == 1  # same incident, reopened
+    assert incidents_2[0].status == IncidentStatus.OPEN
+    assert incidents_2[0].incident_id == incident.incident_id
+
+
+def test_closed_incident_creates_new_one_outside_window():
+    store = IncidentStore()
+    engine = IncidentEngine(store)
+
+    base_time = datetime(2026, 9, 1, 10, 0, 0)
+    events_1 = [make_event(user="admin", ts=base_time)]
+    detections = [make_detection(severity=Severity.HIGH)]
+
+    incidents = engine.process(events_1, detections)
+    incident = incidents[0]
+    incident.status = IncidentStatus.CLOSED
+    store.save(incident)
+
+    # New activity 100 hours later - outside the 48h reopen window
+    events_2 = [make_event(user="admin", ts=base_time + timedelta(hours=100))]
+    incidents_2 = engine.process(events_2, detections)
+
+    assert store.count() == 2  # new incident created
+    new_incident = incidents_2[0]
+    assert incident.incident_id in new_incident.related_incident_ids

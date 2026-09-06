@@ -75,6 +75,7 @@ class Incident(BaseModel):
 
     # --- Assignment (هنستخدمها بعدين لما نعمل multi-analyst support) ---
     assigned_to: Optional[str] = None
+    related_incident_ids: List[str] = Field(default_factory=list)
 
     # --- AI investigation output (هنملاها بعد ما نوصل لمرحلة الـAI investigation) ---
     ai_verdict: Optional[str] = None
