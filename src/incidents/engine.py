@@ -10,10 +10,11 @@ from src.incidents.policy import should_open_incident
 from src.incidents.correlation_key import extract_correlation_key, filter_events_by_correlation_key
 from src.incidents.priority_mapper import map_severity_to_priority
 from src.incidents.store import IncidentStore
+from src.risk.scoring import calculate_risk_score
 
 
 # How long after closing can an incident be reopened instead of creating a new one?
-REOPEN_WINDOW_HOURS = 48
+
 
 
 class IncidentEngine:
@@ -40,7 +41,7 @@ class IncidentEngine:
             linked_old_incident_id: str | None = None
 
             if existing_incident and existing_incident.status == IncidentStatus.CLOSED:
-                if self._within_reopen_window(existing_incident, relevant_events):
+                if self._within_reopen_window(existing_incident, relevant_events, detection.reopen_window_hours):
                     self._reopen(existing_incident)
                 else:
                     linked_old_incident_id = existing_incident.incident_id
@@ -59,6 +60,7 @@ class IncidentEngine:
                 existing_incident.priority = map_severity_to_priority(
                     existing_incident.severity, is_critical_asset
                 )
+                existing_incident.risk_score = calculate_risk_score(existing_incident, is_critical_asset)
                 self.store.save(existing_incident)
                 resulting_incidents.append(existing_incident)
             else:
@@ -76,27 +78,25 @@ class IncidentEngine:
                 if linked_old_incident_id:
                     new_incident.related_incident_ids.append(linked_old_incident_id)
 
+                new_incident.risk_score = calculate_risk_score(new_incident, is_critical_asset)
                 self.store.save(new_incident)
                 resulting_incidents.append(new_incident)
 
         return resulting_incidents
 
-    def _within_reopen_window(self, incident: Incident, new_events: List[NormalizedEvent]) -> bool:
+    def _within_reopen_window(
+        self, incident: Incident, new_events: List[NormalizedEvent], reopen_window_hours: int
+    ) -> bool:
         """
-        Checks if the new activity happened soon enough after the incident
-        was closed to justify reopening it instead of creating a new one.
-
-        Why 48 hours specifically?
-        This is a policy decision, not a technical law. 48 hours is a common
-        industry default (similar to how Splunk ES/QRadar handle "related"
-        alerts) - long enough to catch an attacker retrying quickly, short
-        enough to not conflate unrelated incidents months apart.
+        Checks if new activity happened soon enough after the incident
+        was closed to justify reopening it, using the window defined by
+        the SPECIFIC detection rule that fired (not a global constant).
         """
         if not new_events:
             return False
         latest_new_event_time = max(e.timestamp for e in new_events)
         time_since_last_seen = latest_new_event_time - incident.last_seen
-        return time_since_last_seen <= timedelta(hours=REOPEN_WINDOW_HOURS)
+        return time_since_last_seen <= timedelta(hours=reopen_window_hours)
 
     def _reopen(self, incident: Incident) -> None:
         """

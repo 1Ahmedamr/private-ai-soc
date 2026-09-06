@@ -21,7 +21,7 @@ def make_event(user="admin", src_ip="10.0.0.5", ts=None):
     )
 
 
-def make_detection(severity=Severity.HIGH, rule_name="Test Rule", mitre="T1110"):
+def make_detection(severity=Severity.HIGH, rule_name="Test Rule", mitre="T1110", reopen_hours=48):
     return DetectionResult(
         rule_name=rule_name,
         rule_id="TEST-001",
@@ -29,6 +29,7 @@ def make_detection(severity=Severity.HIGH, rule_name="Test Rule", mitre="T1110")
         severity=severity,
         mitre_technique=mitre,
         description="test detection",
+        reopen_window_hours=reopen_hours,
     )
 
 
@@ -197,3 +198,28 @@ def test_closed_incident_creates_new_one_outside_window():
     assert store.count() == 2  # new incident created
     new_incident = incidents_2[0]
     assert incident.incident_id in new_incident.related_incident_ids
+
+def test_different_rules_use_different_reopen_windows():
+    """
+    Confirms per-rule reopen windows work correctly - a rule with a
+    short window should NOT reopen an incident after a long gap, while
+    a rule with a long window SHOULD.
+    """
+    store = IncidentStore()
+    engine = IncidentEngine(store)
+
+    base_time = datetime(2026, 9, 1, 10, 0, 0)
+
+    # Create and close an incident using a SHORT reopen window rule
+    short_window_detection = [make_detection(reopen_hours=24)]
+    events_1 = [make_event(user="admin", ts=base_time)]
+    incidents = engine.process(events_1, short_window_detection)
+    incident = incidents[0]
+    incident.status = IncidentStatus.CLOSED
+    store.save(incident)
+
+    # 30 hours later - OUTSIDE the 24h window - should create a NEW incident
+    events_2 = [make_event(user="admin", ts=base_time + timedelta(hours=30))]
+    engine.process(events_2, short_window_detection)
+
+    assert store.count() == 2  # new incident created, not reopened

@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import List
 from src.models.event_schema import NormalizedEvent, EventType, Severity
 from src.models.detection_schema import DetectionResult
+from src.mitre.techniques import get_technique
 
 
 def detect_brute_force(
@@ -70,14 +71,15 @@ def detect_brute_force(
                 rule_id="SOC-AUTH-002",
                 triggered=True,
                 severity=Severity.HIGH,
-                mitre_technique="T1110",
-                mitre_tactic="Credential Access",
+                mitre_technique=get_technique("T1110").technique_id,
+                mitre_tactic=get_technique("T1110").tactic,
                 description=(
                     f"Brute force pattern detected: {len(group_events)} failed login "
                     f"attempts for identity '{identity}' within "
                     f"{duration.total_seconds() / 60:.1f} minutes."
                 ),
-                confidence=0.95,  # مش 1.0 - لسه ممكن يكون false positive (زي stress testing من IT)
+                confidence=0.95,
+                reopen_window_hours=48,  # brute force attempts typically retry within hours-to-days
             )
 
     return DetectionResult(

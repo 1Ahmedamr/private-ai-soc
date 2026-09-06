@@ -56,6 +56,7 @@ class Incident(BaseModel):
     status: IncidentStatus = IncidentStatus.OPEN
     priority: IncidentPriority
     severity: Severity
+    risk_score: int = Field(default=0, ge=0, le=100)
 
     # --- Correlation identity - إيه اللي بيربط الأحداث دي مع بعض ---
     correlation_key: str    # مثلاً "user:admin" أو "ip:10.0.0.15"
@@ -76,6 +77,7 @@ class Incident(BaseModel):
     # --- Assignment (هنستخدمها بعدين لما نعمل multi-analyst support) ---
     assigned_to: Optional[str] = None
     related_incident_ids: List[str] = Field(default_factory=list)
+    risk_score: int = Field(default=0, ge=0, le=100)
 
     # --- AI investigation output (هنملاها بعد ما نوصل لمرحلة الـAI investigation) ---
     ai_verdict: Optional[str] = None
