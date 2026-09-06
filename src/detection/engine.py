@@ -5,6 +5,7 @@ from src.models.event_schema import NormalizedEvent
 from src.models.detection_schema import DetectionResult
 from src.detection.rules.failed_login import detect_failed_login
 from src.detection.rules.brute_force import detect_brute_force
+from src.models.detection_schema import DetectionResult
 
 
 class DetectionEngine:
