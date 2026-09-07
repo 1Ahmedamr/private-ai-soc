@@ -3,3 +3,29 @@ __pycache__/
 *.pyc
 .DS_Store
 .vscode/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Data (raw logs + local databases - never commit real/simulated telemetry)
+data/raw/*
+data/processed/*
+*.db
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Secrets
+.env
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

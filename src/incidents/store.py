@@ -1,49 +1,71 @@
 # src/incidents/store.py
 
-from typing import Dict, List, Optional
-from src.models.incident_schema import Incident
+from typing import List, Optional
+from src.models.incident_schema import Incident, IncidentStatus
+from src.storage.db import get_connection, init_schema
 
 
 class IncidentStore:
     """
-    مخزن مؤقت للـincidents في الذاكرة.
+    Persistent, SQLite-backed incident storage.
 
-    ليه بنبنيها كـclass منفصل بدل ما نستخدم list/dict عادي في main.py؟
-    عشان لما نستبدلها بـdatabase حقيقية (SQLite/PostgreSQL) بعدين،
-    نغيّر الملف ده بس - وكل الكود اللي بيستخدم IncidentStore
-    (زي correlation engine, API endpoints, dashboard) 
-    مش هيحتاج يتغيّر خالص. ده تطبيق مبدأ اسمه "Repository Pattern".
+    Why replace the in-memory dict version from Day 6?
+    An in-memory store is wiped every time the process restarts - not
+    acceptable for a real SOC, where incidents must survive restarts and
+    be queryable days later during an investigation.
+
+    Notice: the public interface (save, get_by_id, get_by_correlation_key,
+    get_all, get_open_incidents, count) is IDENTICAL to the old version.
+    Nothing outside this file needs to change. This is the exact payoff
+    of the "Repository Pattern" comment from Day 6 - it wasn't just
+    theory, this is what it was for.
     """
 
-    def __init__(self):
-        self._incidents: Dict[str, Incident] = {}
-        # فهرسة إضافية بالـcorrelation_key عشان نلاقي incidents سريع
-        self._by_correlation_key: Dict[str, str] = {}  # correlation_key -> incident_id
+    def __init__(self, db_path: str = ":memory:"):
+        self.conn = get_connection(db_path)
+        init_schema(self.conn)
 
     def save(self, incident: Incident) -> None:
-        self._incidents[incident.incident_id] = incident
-        self._by_correlation_key[incident.correlation_key] = incident.incident_id
+        self.conn.execute(
+            """
+            INSERT INTO incidents (incident_id, correlation_key, status, raw_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(incident_id) DO UPDATE SET
+                correlation_key = excluded.correlation_key,
+                status = excluded.status,
+                raw_json = excluded.raw_json
+            """,
+            (incident.incident_id, incident.correlation_key, incident.status.value, incident.model_dump_json()),
+        )
+        self.conn.commit()
 
     def get_by_id(self, incident_id: str) -> Optional[Incident]:
-        return self._incidents.get(incident_id)
+        row = self.conn.execute(
+            "SELECT raw_json FROM incidents WHERE incident_id = ?", (incident_id,)
+        ).fetchone()
+        return Incident.model_validate_json(row["raw_json"]) if row else None
 
     def get_by_correlation_key(self, correlation_key: str) -> Optional[Incident]:
-        """
-        ده أهم method هنا - بيدور على incident مفتوح بنفس الـcorrelation_key
-        عشان نعمل deduplication (منضيفش incident جديد لو فيه واحد مفتوح
-        أصلاً لنفس الـuser/IP).
-        """
-        incident_id = self._by_correlation_key.get(correlation_key)
-        if incident_id:
-            return self._incidents.get(incident_id)
-        return None
+        row = self.conn.execute(
+            """
+            SELECT raw_json FROM incidents
+            WHERE correlation_key = ?
+            ORDER BY rowid DESC LIMIT 1
+            """,
+            (correlation_key,),
+        ).fetchone()
+        return Incident.model_validate_json(row["raw_json"]) if row else None
 
     def get_all(self) -> List[Incident]:
-        return list(self._incidents.values())
+        rows = self.conn.execute("SELECT raw_json FROM incidents").fetchall()
+        return [Incident.model_validate_json(row["raw_json"]) for row in rows]
 
     def get_open_incidents(self) -> List[Incident]:
-        from src.models.incident_schema import IncidentStatus
-        return [i for i in self._incidents.values() if i.status == IncidentStatus.OPEN]
+        rows = self.conn.execute(
+            "SELECT raw_json FROM incidents WHERE status = ?", (IncidentStatus.OPEN.value,)
+        ).fetchall()
+        return [Incident.model_validate_json(row["raw_json"]) for row in rows]
 
     def count(self) -> int:
-        return len(self._incidents)
+        row = self.conn.execute("SELECT COUNT(*) as c FROM incidents").fetchone()
+        return row["c"]

@@ -1,10 +1,38 @@
 # src/detection/rules/brute_force.py
 
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
+from collections import deque
 from src.models.event_schema import NormalizedEvent, EventType, Severity
 from src.models.detection_schema import DetectionResult
 from src.mitre.techniques import get_technique
+
+
+def _find_burst_window(
+    events_sorted: List[NormalizedEvent], threshold: int, window: timedelta
+) -> Optional[List[NormalizedEvent]]:
+    """
+    Sliding-window scan: finds the first stretch of at least `threshold`
+    events that all fall within `window` of each other, no matter where
+    in a longer history that stretch occurs.
+
+    Why not just check the group's overall first-to-last span?
+    Because once we feed this rule a multi-day history (from the new
+    persistent Event Store), a group might contain old, unrelated noise
+    AND a real recent burst mixed together. Checking only the overall
+    span would let a tight, real burst get diluted by unrelated old
+    events sitting at the edges of the list.
+    """
+    window_queue: deque = deque()
+
+    for event in events_sorted:
+        window_queue.append(event)
+        while window_queue[0].timestamp < event.timestamp - window:
+            window_queue.popleft()
+        if len(window_queue) >= threshold:
+            return list(window_queue)
+
+    return None
 
 
 def detect_brute_force(
@@ -12,22 +40,8 @@ def detect_brute_force(
     threshold: int = 5,
     window_minutes: int = 5,
 ) -> DetectionResult:
-    """
-    Rule: Brute Force Login Attempt
+    """Rule: Brute Force Login Attempt (sliding-window version)."""
 
-    ليه القاعدة دي محتاجة List[NormalizedEvent] مش event واحد؟
-    لأن brute force بطبيعته مش حدث واحد - هو *نمط* (pattern) عبر events متعددة
-    خلال فترة زمنية معينة. مفيش طريقة تكتشفه من event واحد لوحده.
-
-    منطق القاعدة:
-    1. فلترة الـevents اللي هي failed logins بس
-    2. تجميعهم حسب user (أو src_ip لو الـuser مش متاح - نفس منطق fallback
-       اللي اتفقنا عليه في الـnormalization)
-    3. لو عدد المحاولات لنفس الـuser/IP خلال `window_minutes` أكبر من أو
-       يساوي `threshold` → القاعدة تتفعّل بseverity عالية
-    """
-
-    # الخطوة 1: فلترة الـfailed logins فقط
     failed_logins = [
         e for e in events
         if e.event_type == EventType.AUTHENTICATION and e.status == "failure"
@@ -43,43 +57,35 @@ def detect_brute_force(
             confidence=1.0,
         )
 
-    # الخطوة 2: تحديد identity key - fallback logic
-    # ده تطبيق عملي لقرارنا إمبارح: لو user مفقود، استخدم src_ip بدل ما نرفض الـevent
     def get_identity_key(event: NormalizedEvent) -> str:
         return event.user or event.src_ip or "unknown"
 
-    # الخطوة 3: تجميع حسب identity + التأكد إنهم في نفس الـtime window
     failed_logins.sort(key=lambda e: e.timestamp)
-
     grouped: dict[str, list[NormalizedEvent]] = {}
     for event in failed_logins:
         key = get_identity_key(event)
         grouped.setdefault(key, []).append(event)
 
-    # الخطوة 4: فحص كل مجموعة - هل عدد المحاولات ضمن الـwindow يتخطى الـthreshold
+    window = timedelta(minutes=window_minutes)
+
     for identity, group_events in grouped.items():
-        if len(group_events) < threshold:
-            continue
-
-        first_time = group_events[0].timestamp
-        last_time = group_events[-1].timestamp
-        duration = last_time - first_time
-
-        if duration <= timedelta(minutes=window_minutes):
+        burst = _find_burst_window(group_events, threshold, window)
+        if burst:
+            technique = get_technique("T1110")
             return DetectionResult(
                 rule_name="Brute Force Detection",
                 rule_id="SOC-AUTH-002",
                 triggered=True,
                 severity=Severity.HIGH,
-                mitre_technique=get_technique("T1110").technique_id,
-                mitre_tactic=get_technique("T1110").tactic,
+                mitre_technique=technique.technique_id if technique else "T1110",
+                mitre_tactic=technique.tactic if technique else "Credential Access",
                 description=(
-                    f"Brute force pattern detected: {len(group_events)} failed login "
-                    f"attempts for identity '{identity}' within "
-                    f"{duration.total_seconds() / 60:.1f} minutes."
+                    f"Brute force pattern detected: {len(burst)} failed login "
+                    f"attempts for identity '{identity}' within a "
+                    f"{window_minutes}-minute window."
                 ),
                 confidence=0.95,
-                reopen_window_hours=48,  # brute force attempts typically retry within hours-to-days
+                reopen_window_hours=48,
             )
 
     return DetectionResult(
