@@ -1,0 +1,5 @@
+identifier,identifier_type,criticality,description
+10.0.0.50,ip,critical,Primary Domain Controller
+WIN-DC01,host,critical,Primary Domain Controller (hostname)
+10.0.0.20,ip,important,File Server - Finance
+WIN-CLIENT,host,standard,Regular employee workstation

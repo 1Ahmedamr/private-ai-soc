@@ -28,14 +28,18 @@ def make_conn_event(dst_port, ts):
     )
 
 
+from src.assets.inventory import AssetInventory
+
 event_store = EventStore(EVENTS_DB)
 incident_store = IncidentStore(INCIDENTS_DB)
-orchestrator = PipelineOrchestrator(event_store, incident_store)
+asset_inventory = AssetInventory()
+asset_inventory.load_from_csv("configs/assets.csv")
+orchestrator = PipelineOrchestrator(event_store, incident_store, asset_inventory)
 
 base_time = datetime(2026, 9, 6, 10, 0, 0)
 part1_events = [make_conn_event(p, base_time) for p in [21, 22, 23]]
 
-incidents = orchestrator.ingest(part1_events, is_critical_asset=False)
+incidents = orchestrator.ingest(part1_events)
 
 print(f"[Part 1 - Hour 0] Probed ports: 21, 22, 23 (3 unique ports)")
 print(f"[Part 1] Incidents created: {len(incidents)} (expected: 0 - below threshold on its own)")
