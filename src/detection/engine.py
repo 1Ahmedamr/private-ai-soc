@@ -6,6 +6,7 @@ from src.models.detection_schema import DetectionResult
 from src.detection.rules.failed_login import detect_failed_login
 from src.detection.rules.brute_force import detect_brute_force
 from src.detection.rules.port_scan import detect_port_scan, detect_slow_port_scan
+from src.detection.rules.ssh_root_brute_force import detect_ssh_root_brute_force
 
 
 class DetectionEngine:
@@ -27,14 +28,14 @@ class DetectionEngine:
         if brute_force_result.triggered:
             results.append(brute_force_result)
 
+        ssh_root_result = detect_ssh_root_brute_force(events)
+        if ssh_root_result.triggered:
+            results.append(ssh_root_result)
+
         fast_scan_result = detect_port_scan(events)
         if fast_scan_result.triggered:
             results.append(fast_scan_result)
         else:
-            # Only check the slow/evasive pattern if the fast check didn't
-            # already catch something more obvious - prevents both variants
-            # firing redundantly on the exact same fast-scan evidence
-            # (same alert-fatigue principle from Day 3's incident policy).
             slow_scan_result = detect_slow_port_scan(events)
             if slow_scan_result.triggered:
                 results.append(slow_scan_result)
