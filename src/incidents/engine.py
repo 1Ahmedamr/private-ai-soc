@@ -82,7 +82,15 @@ class IncidentEngine:
                 self.store.save(new_incident)
                 resulting_incidents.append(new_incident)
 
-        return resulting_incidents
+                # Multiple qualifying detections in one call may all resolve to the
+        # SAME underlying incident (re-fetched fresh from the store each
+        # iteration, per correlation_key). Without this, callers would see
+        # duplicate stale/fresh snapshots of one incident as if they were
+        # separate incidents. Keep only the final state per unique id.
+        deduped: dict[str, Incident] = {}
+        for inc in resulting_incidents:
+            deduped[inc.incident_id] = inc
+        return list(deduped.values())
 
     def _within_reopen_window(
         self, incident: Incident, new_events: List[NormalizedEvent], reopen_window_hours: int
@@ -109,6 +117,3 @@ class IncidentEngine:
         incident.updated_at = datetime.now()
 
 
-def timedelta_hours(hours: int):
-    from datetime import timedelta
-    return timedelta(hours=hours)
