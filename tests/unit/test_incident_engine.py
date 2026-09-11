@@ -223,3 +223,23 @@ def test_different_rules_use_different_reopen_windows():
     engine.process(events_2, short_window_detection)
 
     assert store.count() == 2  # new incident created, not reopened
+
+def test_multiple_detections_in_one_call_return_single_deduped_incident():
+    """
+    Regression test for the stale/fresh snapshot bug: two qualifying
+    detections on the same correlation key in one process() call must
+    return exactly one incident, not one per detection.
+    """
+    store = IncidentStore()
+    engine = IncidentEngine(store)
+    events = [make_event(user="root")]
+    detections = [
+        make_detection(severity=Severity.HIGH, rule_name="Rule A"),
+        make_detection(severity=Severity.HIGH, rule_name="Rule B"),
+    ]
+
+    incidents = engine.process(events, detections)
+
+    assert len(incidents) == 1
+    assert store.count() == 1
+    assert len(incidents[0].detections) == 2
