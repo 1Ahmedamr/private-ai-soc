@@ -11,6 +11,7 @@ from src.incidents.correlation_key import extract_correlation_key
 from src.assets.inventory import AssetInventory
 from src.ai.evidence import build_evidence
 from src.ai.ollama_client import investigate
+from src.ai.policy import should_auto_investigate
 
 HISTORY_LOOKBACK_HOURS = 24 * 7
 
@@ -52,8 +53,13 @@ class PipelineOrchestrator:
         # than the source.
         is_critical = self._resolve_criticality(full_history)
 
-        return self.incident_engine.process(full_history, detections, is_critical_asset=is_critical)
+        incidents = self.incident_engine.process(full_history, detections, is_critical_asset=is_critical)
 
+        for incident in incidents:
+            if should_auto_investigate(incident):
+                self.investigate_incident(incident, self.incident_engine.store)
+
+        return incidents
     def _resolve_criticality(self, events: List[NormalizedEvent]) -> bool:
         for event in events:
             if self.asset_inventory.is_critical_or_important(event.host, event.dst_ip):
