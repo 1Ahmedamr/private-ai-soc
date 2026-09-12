@@ -1,7 +1,9 @@
 # src/dashboard/cli_view.py
 
+import os
 from typing import List
 from src.models.incident_schema import Incident, IncidentStatus
+
 
 
 # ANSI color codes - why hand-roll this instead of a dependency like
@@ -94,3 +96,12 @@ def render_incident_detail(incident: Incident) -> str:
 
     lines.append(f"{'='*70}")
     return "\n".join(lines)
+
+def clear_screen() -> None:
+    """
+    Cross-platform terminal clear. Why not just print a bunch of
+    newlines? os.system with the correct per-OS command gives a真正
+    clean redraw (cursor resets to top), matching how real monitoring
+    tools like htop refresh - newlines alone leave scrollback clutter.
+    """
+    os.system("cls" if os.name == "nt" else "clear")
