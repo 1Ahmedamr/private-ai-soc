@@ -28,3 +28,5 @@ Thumbs.db
 
 # Note: configs/assets.csv is intentionally tracked - it's structural
 # metadata (which hosts matter), not raw log/telemetry data.
+
+docker/pg_data/

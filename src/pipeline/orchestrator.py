@@ -9,6 +9,8 @@ from src.incidents.store import IncidentStore
 from src.storage.event_store import EventStore
 from src.incidents.correlation_key import extract_correlation_key
 from src.assets.inventory import AssetInventory
+from src.ai.evidence import build_evidence
+from src.ai.ollama_client import investigate
 
 HISTORY_LOOKBACK_HOURS = 24 * 7
 
@@ -59,3 +61,20 @@ class PipelineOrchestrator:
             if self.asset_inventory.is_critical_or_important(event.host, event.src_ip):
                 return True
         return False
+    def investigate_incident(self, incident, incident_store) -> None:
+        """
+        Optional enhancement step - call this separately from ingest(),
+        not automatically inline. Detection/Incident/Risk must always be
+        able to run completely on their own, per Day 3's architecture
+        decision. This method is how an analyst (or a scheduled job)
+        chooses to enrich an incident with AI reasoning, on demand.
+        """
+        evidence = build_evidence(incident)
+        verdict = investigate(evidence)
+
+        if verdict is None:
+            return  # AI unavailable or failed - incident remains valid without it
+
+        incident.ai_verdict = verdict.summary
+        incident.recommended_actions = verdict.recommended_actions
+        incident_store.save(incident)
