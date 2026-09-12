@@ -23,7 +23,7 @@ this exact shape, nothing else:
 """
 
 
-def investigate(evidence: InvestigationEvidence, model: str = "qwen2.5:7b") -> Optional[InvestigationVerdict]:
+def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Optional[InvestigationVerdict]:
     """
     Returns None on any failure (unreachable Ollama, malformed response) -
     the pipeline must be able to proceed WITHOUT an AI verdict. AI
