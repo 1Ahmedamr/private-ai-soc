@@ -1,4 +1,5 @@
-# docker/docker-compose.yml
+
+
 services:
   postgres:
     image: postgres:16
@@ -11,5 +12,14 @@ services:
       - "5432:5432"
     volumes:
       - soc_pg_data:/var/lib/postgresql/data
+  soc_app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - ../data:/app/data
+      - ../configs:/app/configs
 volumes:
   soc_pg_data:
