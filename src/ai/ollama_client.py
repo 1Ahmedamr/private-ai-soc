@@ -1,10 +1,14 @@
 # src/ai/ollama_client.py
 
+import os
 import json
 import requests
 from src.ai.evidence import InvestigationEvidence
 from src.ai.verdict import InvestigationVerdict
 from typing import Optional
+
+
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
 SYSTEM_PROMPT = """You are a SOC investigation assistant. You will be given
 ALREADY-DECIDED evidence about a security incident: severity, risk score, and
@@ -35,7 +39,7 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
 
     try:
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            f"{OLLAMA_BASE_URL}/api/generate",
             json={"model": model, "prompt": prompt, "stream": False, "format": "json"},
             timeout=60,
         )

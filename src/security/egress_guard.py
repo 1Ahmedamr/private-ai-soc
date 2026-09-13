@@ -6,7 +6,7 @@ from contextlib import contextmanager
 # Localhost is where Ollama and Postgres/SQLite live. Anything else
 # means data is about to leave the machine - which contradicts the
 # entire "private" promise of this project.
-_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1"}
+_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1", "ollama", "postgres"}
 
 
 class UnexpectedNetworkAccessError(Exception):

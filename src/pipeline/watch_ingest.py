@@ -53,6 +53,11 @@ def watch_and_ingest(orchestrator: PipelineOrchestrator, poll_seconds: int = 3) 
                     shutil.move(str(file_path), PROCESSED_DIR / file_path.name)
                     continue
 
+                size_1 = file_path.stat().st_size
+                time.sleep(0.2)
+                if not file_path.exists() or file_path.stat().st_size != size_1:
+                    continue
+                
                 with open(file_path) as f:
                     raw_events = json.load(f)
 
