@@ -1,0 +1,4 @@
+[
+  {"timestamp": "2026-09-13T11:00:00.000000+0300", "src_ip": "198.51.100.7", "dest_ip": "10.0.0.50", "dest_port": 445, "alert": {"signature": "ET TROJAN Possible SMB Exploit Attempt", "severity": 1, "category": "A Network Trojan was detected"}},
+  {"timestamp": "2026-09-13T11:00:05.000000+0300", "src_ip": "198.51.100.7", "dest_ip": "10.0.0.50", "dest_port": 445, "alert": {"signature": "ET TROJAN Possible SMB Exploit Attempt", "severity": 1, "category": "A Network Trojan was detected"}}
+]
