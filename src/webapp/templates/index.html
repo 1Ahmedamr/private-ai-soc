@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Incidents - Private AI SOC{% endblock %}
+{% block content %}
+<h1>🛡️ Private AI SOC — Incident Queue</h1>
+<p>{{ incidents|length }} open incident(s) shown, {{ total }} total in store.</p>
+
+{% if not incidents %}
+<div class="section">No open incidents. Queue is clear.</div>
+{% else %}
+<table>
+    <tr><th>ID</th><th>Risk</th><th>Severity</th><th>Priority</th><th>MITRE</th><th>Title</th><th>AI Verdict</th></tr>
+    {% for inc in incidents %}
+    <tr>
+        <td><a href="/incident/{{ inc.incident_id }}">{{ inc.incident_id }}</a></td>
+        <td>{{ inc.risk_score }}</td>
+        <td class="sev-{{ inc.severity }}">{{ inc.severity }}</td>
+        <td>{{ inc.priority }}</td>
+        <td>{% for t in inc.mitre_techniques %}<span class="badge">{{ t }}</span>{% endfor %}</td>
+        <td>{{ inc.title }}</td>
+        <td>{{ "Investigated" if inc.ai_verdict else "—" }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

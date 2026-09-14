@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Private AI SOC{% endblock %}</title>
+    <style>
+        body { font-family: -apple-system, monospace; background: #0d1117; color: #c9d1d9; margin: 0; padding: 2rem; }
+        h1 { color: #58a6ff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #30363d; }
+        th { color: #8b949e; font-size: 0.85rem; text-transform: uppercase; }
+        tr:hover { background: #161b22; }
+        a { color: #58a6ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .sev-high, .sev-critical { color: #f85149; font-weight: bold; }
+        .sev-medium { color: #d29922; }
+        .sev-low, .sev-info { color: #3fb950; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; background: #21262d; font-size: 0.8rem; }
+        .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; }
+        .back { display: inline-block; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>

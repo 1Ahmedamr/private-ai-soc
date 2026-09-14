@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ incident.incident_id }} - Private AI SOC{% endblock %}
+{% block content %}
+<a href="/" class="back">← Back to queue</a>
+<h1>{{ incident.title }}</h1>
+<div class="section">
+    <strong>{{ incident.incident_id }}</strong><br>
+    Status: {{ incident.status }} | Priority: {{ incident.priority }} |
+    <span class="sev-{{ incident.severity }}">Severity: {{ incident.severity }}</span> |
+    Risk: {{ incident.risk_score }}/100
+</div>
+
+<div class="section">
+    <strong>Correlation Key:</strong> {{ incident.correlation_key }}<br>
+    <strong>MITRE:</strong> {% for t in incident.mitre_techniques %}<span class="badge">{{ t }}</span>{% endfor %}<br>
+    <strong>First Seen:</strong> {{ incident.first_seen }} | <strong>Last Seen:</strong> {{ incident.last_seen }}<br>
+    <strong>Events Attached:</strong> {{ incident.events|length }}
+</div>
+
+<div class="section">
+    <h3>Detections</h3>
+    <ul>
+    {% for d in incident.detections %}
+        <li><strong>{{ d.rule_name }}</strong>: {{ d.description }} (confidence={{ d.confidence }})</li>
+    {% endfor %}
+    </ul>
+</div>
+
+<div class="section">
+    <h3>AI Investigation</h3>
+    {% if incident.ai_verdict %}
+        <p>{{ incident.ai_verdict }}</p>
+        <strong>Recommended Actions:</strong>
+        <ul>{% for a in incident.recommended_actions %}<li>{{ a }}</li>{% endfor %}</ul>
+    {% else %}
+        <p>Not yet investigated.</p>
+    {% endif %}
+</div>
+{% endblock %}
