@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import List
 from src.models.event_schema import NormalizedEvent, EventSource, EventType, Severity
+from dateutil import parser as date_parser
 
 # Suricata severity: 1=high priority, 2=medium, 3=low (LOWER number =
 # MORE severe - opposite of intuition, a common Suricata gotcha).
@@ -22,7 +23,7 @@ def parse_suricata_alert(raw_event: dict) -> NormalizedEvent:
     suricata_severity = alert.get("severity", 2)
 
     return NormalizedEvent(
-        timestamp=datetime.fromisoformat(raw_event["timestamp"]),
+        timestamp=date_parser.isoparse(raw_event["timestamp"]),
         source=EventSource.SURICATA,
         event_type=EventType.ALERT,
         src_ip=raw_event.get("src_ip"),

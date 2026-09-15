@@ -23,3 +23,16 @@ def test_detect_suricata_alerts_triggers_on_any_alert():
 def test_no_suricata_events_does_not_trigger():
     result = detect_suricata_alerts([])
     assert result.triggered is False
+
+
+def test_parses_real_suricata_compact_timezone_format():
+    """
+    Regression test: real Suricata EVE JSON uses compact timezone offsets
+    (+0300) rather than the colon-separated ISO form (+03:00) that
+    Python's datetime.fromisoformat() strictly requires on 3.9. This
+    exact string caused a crash when testing against a real PCAP.
+    """
+    raw = {"timestamp": "2026-09-15T18:02:14.059025+0300", "src_ip": "1.2.3.4",
+           "dest_ip": "10.0.0.1", "dest_port": 445, "alert": {"signature": "test", "severity": 1}}
+    event = parse_suricata_alert(raw)
+    assert event.timestamp.year == 2026
