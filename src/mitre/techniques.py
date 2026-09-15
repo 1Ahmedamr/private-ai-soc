@@ -1,18 +1,14 @@
 # src/mitre/techniques.py
 
 from pydantic import BaseModel
+from src.mitre.models import MitreTechnique
 from typing import Dict, Optional
+from src.mitre.import_dataset import load_full_mitre_dataset
+
+_FULL_DATASET_CACHE: dict = {}
 
 
-class MitreTechnique(BaseModel):
-    """
-    Structured representation of a single MITRE ATT&CK technique.
-    """
-    technique_id: str      # e.g. "T1110"
-    name: str               # e.g. "Brute Force"
-    tactic: str             # e.g. "Credential Access"
-    sub_technique: Optional[str] = None   # e.g. "T1110.001" for "Password Guessing"
-    url: str
+
 
 
 # This is a small local knowledge base of techniques relevant to our
@@ -48,15 +44,22 @@ MITRE_TECHNIQUES: Dict[str, MitreTechnique] = {
 }
 
 
-def get_technique(technique_id: str) -> Optional[MitreTechnique]:
+def get_technique(technique_id: str):
     """
-    Safe lookup function. Returns None instead of raising an error
-    if the technique isn't in our local knowledge base yet.
+    Looks up a technique - tries the full imported MITRE dataset first
+    (if available), falls back to our small hardcoded set otherwise.
 
-    Why return None instead of raising an exception?
-    Because a missing MITRE mapping shouldn't crash the whole detection
-    pipeline. If a rule references a technique ID we haven't added yet,
-    we want the system to keep working (perhaps logging a warning) rather
-    than failing the entire analysis.
+    Why keep the hardcoded 4 at all now? Because the full dataset is a
+    ~50MB file a fresh clone won't have until someone runs the download
+    step from INSTALLATION.md. The hardcoded fallback means the 4
+    techniques our OWN detection rules actually reference (T1110,
+    T1110.001, T1078, T1046) always work, even before that setup step -
+    the system degrades gracefully rather than breaking.
     """
+    global _FULL_DATASET_CACHE
+    if not _FULL_DATASET_CACHE:
+        _FULL_DATASET_CACHE = load_full_mitre_dataset()
+
+    if technique_id in _FULL_DATASET_CACHE:
+        return _FULL_DATASET_CACHE[technique_id]
     return MITRE_TECHNIQUES.get(technique_id)

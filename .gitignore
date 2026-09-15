@@ -30,3 +30,5 @@ Thumbs.db
 # metadata (which hosts matter), not raw log/telemetry data.
 
 docker/pg_data/
+
+data/mitre/*.json
