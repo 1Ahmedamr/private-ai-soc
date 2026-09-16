@@ -21,3 +21,16 @@
 ## Running the pipeline
 - `docker exec -it docker-soc_app-1 python -m scripts.seed_dashboard_data`
 - `docker exec -it docker-soc_app-1 python -m scripts.dashboard`
+
+
+## Dashboard Authentication
+
+The web dashboard requires HTTP Basic Auth. Set real credentials via
+environment variables before running:
+
+    export DASHBOARD_USERNAME=youranalystname
+    export DASHBOARD_PASSWORD=a-real-password-not-changeme
+
+If unset, defaults to username "analyst" / password "changeme" - this
+default is for local development convenience ONLY and must be changed
+before exposing the dashboard on any shared network.
