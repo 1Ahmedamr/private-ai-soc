@@ -33,3 +33,18 @@ docker/pg_data/
 
 data/mitre/*.json
 data/zeek_output/
+
+
+# Sentence transformers cache
+.cache/
+*.safetensors
+
+# Knowledge base embeddings (computed at runtime, not source)
+data/knowledge_base/.cache/
+
+# Node (if anyone adds a frontend later)
+node_modules/
+
+# Test coverage reports
+.coverage
+htmlcov/
