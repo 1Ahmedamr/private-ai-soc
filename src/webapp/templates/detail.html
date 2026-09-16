@@ -36,4 +36,17 @@
         <p>Not yet investigated.</p>
     {% endif %}
 </div>
+<div class="section">
+    <h3>Timeline</h3>
+    <ul style="list-style:none; padding-left:0;">
+    {% for entry in timeline %}
+        <li style="padding:0.4rem 0; border-left:2px solid {{ '#f85149' if entry.type == 'detection' else '#30363d' }}; padding-left:0.8rem; margin-bottom:0.3rem;">
+            <strong>{{ entry.timestamp }}</strong> —
+            <span class="badge">{{ entry.type }}</span>
+            {{ entry.label }}<br>
+            <small>{{ entry.detail }}</small>
+        </li>
+    {% endfor %}
+    </ul>
+</div>
 {% endblock %}

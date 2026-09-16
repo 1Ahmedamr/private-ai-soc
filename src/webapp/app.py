@@ -7,6 +7,7 @@ from flask import request, Response
 from flask import Flask, render_template, abort
 from src.incidents.store import IncidentStore
 from src.models.incident_schema import IncidentStatus
+from src.dashboard.timeline import build_timeline_entries
 
 DB_PATH = "data/processed/soc_incidents.db"
 
@@ -78,7 +79,8 @@ def incident_detail(incident_id):
     incident = store.get_by_id(incident_id)
     if not incident:
         abort(404)
-    return render_template("detail.html", incident=incident)
+    timeline = build_timeline_entries(incident)
+    return render_template("detail.html", incident=incident, timeline=timeline)
 
 
 @app.errorhandler(404)
