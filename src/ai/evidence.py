@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 from typing import List
 from src.models.incident_schema import Incident
+from src.knowledge.index import KnowledgeBase
 
 
 class InvestigationEvidence(BaseModel):
@@ -26,13 +27,25 @@ class InvestigationEvidence(BaseModel):
     first_seen: str
     last_seen: str
     is_reopened_incident: bool
+    relevant_playbook_excerpts: List[str] = []
+
+
+_knowledge_base = None
+
+
+def _get_knowledge_base() -> KnowledgeBase:
+    global _knowledge_base
+    if _knowledge_base is None:
+        _knowledge_base = KnowledgeBase()
+        _knowledge_base.build()
+    return _knowledge_base
 
 
 def build_evidence(incident: Incident) -> InvestigationEvidence:
-    """
-    Converts a full Incident (which HAS raw events, HAS raw_data) into
-    the stripped-down, safe evidence package the AI is allowed to see.
-    """
+    kb = _get_knowledge_base()
+    query = f"{incident.title} {' '.join(d.description for d in incident.detections)}"
+    relevant_chunks = [chunk for chunk, score in kb.query(query, top_k=2) if score > 0.3]
+
     return InvestigationEvidence(
         incident_id=incident.incident_id,
         title=incident.title,
@@ -45,4 +58,5 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         first_seen=incident.first_seen.isoformat(),
         last_seen=incident.last_seen.isoformat(),
         is_reopened_incident=len(incident.related_incident_ids) > 0,
+        relevant_playbook_excerpts=relevant_chunks,
     )

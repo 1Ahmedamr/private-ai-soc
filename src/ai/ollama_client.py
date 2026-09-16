@@ -3,9 +3,9 @@
 import os
 import json
 import requests
+from typing import Optional
 from src.ai.evidence import InvestigationEvidence
 from src.ai.verdict import InvestigationVerdict
-from typing import Optional
 
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -30,12 +30,17 @@ this exact shape, nothing else:
 def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Optional[InvestigationVerdict]:
     """
     Returns None on any failure (unreachable Ollama, malformed response) -
-    the pipeline must be able to proceed WITHOUT an AI verdict. AI
-    investigation is an enhancement, never a dependency the rest of the
-    system breaks without - direct application of the human-in-the-loop
-    principle from your own roadmap's business section.
+    the pipeline must be able to proceed WITHOUT an AI verdict.
     """
-    prompt = f"{SYSTEM_PROMPT}\n\nEvidence:\n{evidence.model_dump_json(indent=2)}"
+    playbook_section = ""
+    if evidence.relevant_playbook_excerpts:
+        playbook_section = (
+            "\n\nRelevant internal playbook guidance (use this to inform "
+            "your recommended actions, but still reason about this "
+            "specific incident):\n" + "\n---\n".join(evidence.relevant_playbook_excerpts)
+        )
+
+    prompt = f"{SYSTEM_PROMPT}\n\nEvidence:\n{evidence.model_dump_json(indent=2)}{playbook_section}"
 
     try:
         response = requests.post(

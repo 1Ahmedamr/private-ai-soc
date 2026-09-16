@@ -12,3 +12,4 @@ urllib3==2.6.3
 psycopg2-binary==2.9.9
 python-dateutil==2.9.0.post0
 flask
+sentence-transformers==3.3.1
