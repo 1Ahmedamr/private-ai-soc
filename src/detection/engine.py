@@ -7,6 +7,10 @@ from src.detection.rules.failed_login import detect_failed_login
 from src.detection.rules.brute_force import detect_brute_force
 from src.detection.rules.port_scan import detect_port_scan, detect_slow_port_scan
 from src.detection.rules.ssh_root_brute_force import detect_ssh_root_brute_force
+from src.detection.rules.suricata_signature_match import detect_suricata_alerts
+from src.detection.rules.suspicious_dns import detect_suspicious_dns
+from src.detection.rules.suspicious_powershell import detect_suspicious_powershell
+from src.detection.rules.c2_beacon import detect_c2_beacon
 
 
 class DetectionEngine:
@@ -39,6 +43,22 @@ class DetectionEngine:
             slow_scan_result = detect_slow_port_scan(events)
             if slow_scan_result.triggered:
                 results.append(slow_scan_result)
+
+        suricata_result = detect_suricata_alerts(events)
+        if suricata_result.triggered:
+            results.append(suricata_result)
+
+        dns_result = detect_suspicious_dns(events)
+        if dns_result.triggered:
+            results.append(dns_result)
+
+        powershell_result = detect_suspicious_powershell(events)
+        if powershell_result.triggered:
+            results.append(powershell_result)
+
+        c2_result = detect_c2_beacon(events)
+        if c2_result.triggered:
+            results.append(c2_result)
 
         return results
 

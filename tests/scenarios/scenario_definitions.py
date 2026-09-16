@@ -16,20 +16,28 @@ def scenario_brute_force():
     return {"name": "Brute Force", "events": events, "expect_incident": True, "expect_rule": "Brute Force Detection"}
 
 
-def scenario_powershell_execution_placeholder():
-    """
-    Roadmap Scenario 2. Genuinely NOT buildable yet - we have no
-    process-execution event type wired to a real detection rule (that
-    needs Sysmon-style parsing, not yet built). Marked explicitly as a
-    gap rather than faked, so the benchmark report is honest about
-    coverage instead of padding the number of "scenarios" dishonestly.
-    """
-    return {"name": "PowerShell Execution", "events": [], "expect_incident": False, "not_implemented": True}
+def scenario_powershell_execution():
+    base = datetime(2026, 9, 11, 9, 0, 0)
+    events = [
+        NormalizedEvent(
+            timestamp=base, source=EventSource.WINDOWS,
+            event_type=EventType.PROCESS_EXECUTION, user="admin", host="WIN-CLIENT",
+            process="powershell.exe", command="powershell -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA==",
+        )
+    ]
+    return {"name": "PowerShell Execution", "events": events, "expect_incident": True, "expect_rule": "Suspicious PowerShell Execution"}
 
 
-def scenario_suspicious_dns_placeholder():
-    """Roadmap Scenario 3 - needs Zeek dns.log parsing, not yet built."""
-    return {"name": "Suspicious DNS", "events": [], "expect_incident": False, "not_implemented": True}
+def scenario_suspicious_dns():
+    base = datetime(2026, 9, 11, 9, 0, 0)
+    events = [
+        NormalizedEvent(
+            timestamp=base, source=EventSource.ZEEK,
+            event_type=EventType.DNS_QUERY, src_ip="10.0.0.15",
+            event_id="a3f8k2p9m1q7.malware-c2.net",
+        )
+    ]
+    return {"name": "Suspicious DNS", "events": events, "expect_incident": True, "expect_rule": "Suspicious DNS (High-Entropy Domain)"}
 
 
 def scenario_port_scanning():
@@ -45,13 +53,21 @@ def scenario_port_scanning():
     return {"name": "Port Scanning", "events": events, "expect_incident": True, "expect_rule": "Port Scan Detection (Fast)"}
 
 
-def scenario_possible_c2_placeholder():
-    """Roadmap Scenario 5 - the C2 beacon placeholder rule from Day 8 was never wired into DetectionEngine (deliberately, per that day's notes). Still a gap."""
-    return {"name": "Possible C2", "events": [], "expect_incident": False, "not_implemented": True}
+def scenario_possible_c2():
+    base = datetime(2026, 9, 11, 9, 0, 0)
+    events = [
+        NormalizedEvent(
+            timestamp=base + timedelta(seconds=i * 60),
+            source=EventSource.ZEEK, event_type=EventType.NETWORK_CONNECTION,
+            src_ip="10.0.0.15", dst_ip="185.220.101.5",
+            dst_port=443, protocol="tcp", conn_state="SF",
+        )
+        for i in range(8)
+    ]
+    return {"name": "Possible C2", "events": events, "expect_incident": True, "expect_rule": "Possible C2 Beacon (Periodic Connections)"}
 
 
 def scenario_credential_attack():
-    """SSH root brute force - a distinct scenario from generic brute force per Day 12's rule."""
     base = datetime(2026, 9, 11, 9, 0, 0)
     events = [
         NormalizedEvent(
@@ -65,11 +81,6 @@ def scenario_credential_attack():
 
 
 def scenario_benign_activity():
-    """
-    Roadmap Scenario 7 - THE MOST IMPORTANT ONE FOR TRUST. A pile of
-    completely normal successful logins across different users. If this
-    ever creates an incident, that's a false positive bug, full stop.
-    """
     base = datetime(2026, 9, 11, 9, 0, 0)
     events = [
         NormalizedEvent(
@@ -83,10 +94,10 @@ def scenario_benign_activity():
 
 ALL_SCENARIOS = [
     scenario_brute_force,
-    scenario_powershell_execution_placeholder,
-    scenario_suspicious_dns_placeholder,
+    scenario_powershell_execution,
+    scenario_suspicious_dns,
     scenario_port_scanning,
-    scenario_possible_c2_placeholder,
+    scenario_possible_c2,
     scenario_credential_attack,
     scenario_benign_activity,
 ]

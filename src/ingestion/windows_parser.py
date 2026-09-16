@@ -28,3 +28,21 @@ def parse_windows_events(raw_events: list[dict]) -> list[NormalizedEvent]:
     كل event لوحده بيتعالج بـparse_windows_4625 (حاليًا القاعدة الوحيدة عندنا).
     """
     return [parse_windows_4625(raw) for raw in raw_events]
+
+def parse_windows_process_event(raw_event: dict) -> NormalizedEvent:
+    return NormalizedEvent(
+        timestamp=datetime.fromisoformat(raw_event["timestamp"]),
+        source=EventSource.WINDOWS,
+        event_type=EventType.PROCESS_EXECUTION,
+        host=raw_event.get("host"),
+        user=raw_event.get("username"),
+        process=raw_event.get("process_name"),
+        command=raw_event.get("command_line"),
+        event_id=str(raw_event.get("event_id", "4688")),
+        severity=Severity.INFO,
+        raw_data=raw_event,
+    )
+
+
+def parse_windows_process_events(raw_events: list[dict]) -> list[NormalizedEvent]:
+    return [parse_windows_process_event(raw) for raw in raw_events]

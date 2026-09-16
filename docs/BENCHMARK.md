@@ -8,16 +8,16 @@ No numbers here are estimated or fabricated.
 ## Detection coverage & accuracy
 SCENARIO                      STATUS            TIME (ms)   
 ------------------------------------------------------------
-Brute Force                   PASS              5979.01     
-PowerShell Execution          NOT IMPLEMENTED   -           
-Suspicious DNS                NOT IMPLEMENTED   -           
-Port Scanning                 PASS              0.86        
-Possible C2                   NOT IMPLEMENTED   -           
-Credential Attack (SSH Root)  PASS              10304.8     
-Benign Activity               PASS              0.44        
+Brute Force                   PASS              18883.47    
+PowerShell Execution          PASS              9318.81     
+Suspicious DNS                PASS              2.41        
+Port Scanning                 PASS              11192.76    
+Possible C2                   PASS              14538.58    
+Credential Attack (SSH Root)  PASS              9274.23     
+Benign Activity               PASS              0.58        
 ------------------------------------------------------------
-Coverage: 4/7 roadmap scenarios implemented
-Accuracy: 4/4 implemented scenarios behave correctly
+Coverage: 7/7 roadmap scenarios implemented
+Accuracy: 7/7 implemented scenarios behave correctly
 
 
 ## What this does NOT measure
