@@ -23,10 +23,10 @@
 
 {% if not result.incidents %}
 <div class="section">
-    <p>✅ No incidents detected. The log file did not match any known threat patterns.</p>
+    <p>✅ No incidents detected.</p>
     <p style="color:#8b949e; font-size:0.9rem;">
-        This could mean the activity is benign, or the log format did not produce
-        enough context for the current detection rules. Review the parsed event count above.
+        The log file did not match any known threat patterns.
+        You can still ask questions below about the parsed events.
     </p>
 </div>
 {% else %}
@@ -36,38 +36,27 @@
         <span class="sev-{{ incident.severity }}">{{ incident.severity|upper }}</span>
         — {{ incident.title }}
     </h2>
-
     <table style="width:auto; margin-bottom:1rem;">
         <tr><td style="color:#8b949e; padding-right:1rem;">Risk Score</td><td>{{ incident.risk_score }}/100</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">Priority</td><td>{{ incident.priority.value if incident.priority.value else incident.priority }}</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">MITRE Technique</td>
+        <tr><td style="color:#8b949e; padding-right:1rem;">Priority</td><td>{{ incident.priority }}</td></tr>
+        <tr><td style="color:#8b949e; padding-right:1rem;">MITRE</td>
             <td>{% for t in incident.mitre_techniques %}
                 <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/"
                    target="_blank" class="badge">{{ t }}</a>
-                {% endfor %}
-            </td>
-        </tr>
+                {% endfor %}</td></tr>
         <tr><td style="color:#8b949e; padding-right:1rem;">Affected Identity</td><td>{{ incident.correlation_key }}</td></tr>
     </table>
 
-    <h3>What Happened</h3>
     {% if result.ai_summaries.get(incident.incident_id) %}
     {% set verdict = result.ai_summaries[incident.incident_id] %}
+    <h3>What Happened</h3>
     <p>{{ verdict.summary }}</p>
-    <p style="color:#8b949e; font-size:0.9rem;"><em>AI confidence note: {{ verdict.analyst_confidence_note }}</em></p>
-
-    <h3>MITRE Attack Stage</h3>
+    <h3>Attack Stage</h3>
     <p>{{ verdict.likely_attack_stage }}</p>
-
-    <h3>Recommended Remediation Steps</h3>
-    <ol>
-    {% for action in verdict.recommended_actions %}
-        <li style="margin-bottom:0.4rem;">{{ action }}</li>
-    {% endfor %}
-    </ol>
+    <h3>Recommended Actions</h3>
+    <ol>{% for a in verdict.recommended_actions %}<li>{{ a }}</li>{% endfor %}</ol>
     {% else %}
-    <p style="color:#8b949e;">AI investigation unavailable (Ollama not running or timed out).
-    The incident was detected and scored by deterministic rules — see below for detection details.</p>
+    <p style="color:#8b949e;">AI investigation unavailable — incident detected by deterministic rules.</p>
     {% endif %}
 
     <h3>Detection Evidence</h3>
@@ -81,8 +70,115 @@
 {% endfor %}
 {% endif %}
 
-<div style="margin-top:2rem; color:#8b949e; font-size:0.85rem;">
+<!-- CHAT INTERFACE -->
+<div class="section" id="chat-section" style="margin-top:2rem;">
+    <h2 style="margin-top:0;">💬 Ask the AI Analyst</h2>
+    <p style="color:#8b949e; font-size:0.9rem;">
+        Ask follow-up questions about this specific file and its incidents.
+        All answers are based on the analysis above — no raw log content
+        is sent to the AI, and all processing stays local.
+    </p>
+
+    <div id="chat-history" style="
+        min-height:100px; max-height:400px; overflow-y:auto;
+        background:#0d1117; border:1px solid #30363d; border-radius:6px;
+        padding:1rem; margin-bottom:1rem; font-size:0.9rem;">
+        <p style="color:#8b949e; font-style:italic;">
+            Ask anything about this file — "What should I do first?",
+            "Is this a real attack?", "What's the most dangerous finding?"
+        </p>
+    </div>
+
+    <div style="display:flex; gap:0.5rem;">
+        <input type="text" id="chat-input" placeholder="Ask a question about this analysis..."
+               style="flex:1; background:#161b22; border:1px solid #30363d; color:#c9d1d9;
+                      padding:0.6rem; border-radius:6px; font-size:0.9rem;"
+               onkeydown="if(event.key==='Enter') sendQuestion()">
+        <button onclick="sendQuestion()" id="send-btn"
+                style="background:#238636; color:white; border:none; padding:0.6rem 1.2rem;
+                       border-radius:6px; cursor:pointer; white-space:nowrap;">
+            Send →
+        </button>
+    </div>
+
+    <div id="chat-status" style="color:#8b949e; font-size:0.8rem; margin-top:0.4rem; min-height:1.2rem;"></div>
+</div>
+
+<div style="margin-top:1rem; color:#8b949e; font-size:0.85rem;">
     All analysis performed locally. No data was sent to external services.
     Uploaded file deleted after analysis.
 </div>
+
+<script>
+function appendMessage(role, text) {
+    const history = document.getElementById('chat-history');
+    const msg = document.createElement('div');
+    msg.style.cssText = 'margin-bottom:1rem; padding:0.6rem; border-radius:4px;';
+
+    if (role === 'analyst') {
+        msg.style.background = '#161b22';
+        msg.style.borderLeft = '3px solid #58a6ff';
+        msg.innerHTML = '<strong style="color:#58a6ff;">You:</strong> ' + escapeHtml(text);
+    } else {
+        msg.style.background = '#0d1117';
+        msg.style.borderLeft = '3px solid #3fb950';
+        msg.innerHTML = '<strong style="color:#3fb950;">AI Analyst:</strong> ' + escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    history.appendChild(msg);
+    history.scrollTop = history.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
+
+async function sendQuestion() {
+    const input = document.getElementById('chat-input');
+    const status = document.getElementById('chat-status');
+    const btn = document.getElementById('send-btn');
+    const question = input.value.trim();
+
+    if (!question) return;
+
+    // Clear placeholder text on first message
+    const history = document.getElementById('chat-history');
+    const placeholder = history.querySelector('p');
+    if (placeholder) placeholder.remove();
+
+    appendMessage('analyst', question);
+    input.value = '';
+    btn.disabled = true;
+    btn.textContent = 'Thinking...';
+    status.textContent = 'AI is analyzing your question locally...';
+
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: question})
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            status.textContent = '⚠️ ' + data.error;
+            status.style.color = '#f85149';
+        } else {
+            appendMessage('ai', data.answer);
+            status.textContent = 'Turn ' + data.turn + ' — all processing local';
+            status.style.color = '#3fb950';
+        }
+    } catch (e) {
+        status.textContent = '⚠️ Connection error: ' + e.message;
+        status.style.color = '#f85149';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Send →';
+    input.focus();
+}
+</script>
 {% endblock %}

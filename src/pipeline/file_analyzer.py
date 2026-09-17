@@ -1,7 +1,6 @@
 # src/pipeline/file_analyzer.py
 
 import json
-import tempfile
 from pathlib import Path
 from typing import List, Optional
 from dataclasses import dataclass, field
@@ -25,26 +24,83 @@ from src.ai.ollama_client import investigate
 
 @dataclass
 class AnalysisResult:
-    """
-    Everything the chat interface needs to render results.
-    Structured so the Flask template can display it directly
-    without any business logic in the view layer.
-    """
     filename: str
     format_detected: str
     events_parsed: int
     incidents: List[Incident] = field(default_factory=list)
-    ai_summaries: dict = field(default_factory=dict)  # incident_id -> verdict
+    ai_summaries: dict = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     parse_warning: Optional[str] = None
 
+    def to_session_dict(self) -> dict:
+        """
+        Serializes the analysis result for Flask session storage.
+        Only stores structured evidence - never raw log content.
+        The AI chat will only ever see this structured form,
+        preserving the prompt-injection protection from Day 3.
+        """
+        return {
+            "filename": self.filename,
+            "format_detected": self.format_detected,
+            "events_parsed": self.events_parsed,
+            "errors": self.errors,
+            "parse_warning": self.parse_warning,
+            "incidents": [
+                {
+                    "incident_id": inc.incident_id,
+                    "title": inc.title,
+                    "severity": inc.severity,
+                    "risk_score": inc.risk_score,
+                    "priority": str(inc.priority),
+                    "correlation_key": inc.correlation_key,
+                    "mitre_techniques": inc.mitre_techniques,
+                    "first_seen": inc.first_seen.isoformat(),
+                    "last_seen": inc.last_seen.isoformat(),
+                    "detections": [
+                        {
+                            "rule_name": d.rule_name,
+                            "description": d.description,
+                            "severity": d.severity,
+                            "confidence": d.confidence,
+                            "mitre_technique": d.mitre_technique,
+                        }
+                        for d in inc.detections
+                    ],
+                    "key_events": [
+                        {
+                            "timestamp": e.timestamp.isoformat(),
+                            "source": e.source,
+                            "event_type": e.event_type,
+                            "src_ip": e.src_ip,
+                            "dst_ip": e.dst_ip,
+                            "user": e.user,
+                            "host": e.host,
+                            "status": e.status,
+                            "event_id": e.event_id,
+                        }
+                        for e in inc.events[:20]  # cap at 20 events to avoid session size limits
+                    ],
+                }
+                for inc in self.incidents
+            ],
+            "ai_summaries": {
+                inc_id: {
+                    "summary": v.summary,
+                    "likely_attack_stage": v.likely_attack_stage,
+                    "recommended_actions": v.recommended_actions,
+                    "analyst_confidence_note": v.analyst_confidence_note,
+                }
+                for inc_id, v in self.ai_summaries.items()
+            },
+        }
+
 
 def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
-    """
-    The single entry point for the chat interface:
-    file → format detection → parse → pipeline → AI → results.
-    """
-    result = AnalysisResult(filename=original_filename, format_detected="unknown", events_parsed=0)
+    result = AnalysisResult(
+        filename=original_filename,
+        format_detected="unknown",
+        events_parsed=0,
+    )
 
     fmt = detect_format(file_path, original_filename)
     result.format_detected = fmt
@@ -69,12 +125,10 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
 
     result.events_parsed = len(events)
 
-    # Run through the existing pipeline
     orchestrator = PipelineOrchestrator(EventStore(), IncidentStore(), _load_asset_inventory())
     incidents = orchestrator.ingest(events)
     result.incidents = incidents
 
-    # AI investigation for each incident
     for incident in incidents:
         evidence = build_evidence(incident)
         verdict = investigate(evidence)

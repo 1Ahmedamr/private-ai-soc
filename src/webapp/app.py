@@ -1,5 +1,6 @@
 # src/webapp/app.py
 
+import uuid
 import os
 import secrets
 from functools import wraps
@@ -11,10 +12,13 @@ from src.models.incident_schema import IncidentStatus
 from src.dashboard.timeline import build_timeline_entries
 from werkzeug.utils import secure_filename
 from src.pipeline.file_analyzer import analyze_file
+from flask import Flask, render_template, abort, request, Response, session, jsonify
+
 
 DB_PATH = "data/processed/soc_incidents.db"
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
 # Credentials come from environment variables, never hardcoded - this
 # is the same principle as .env being gitignored from Day 1. Falls
 # back to a default ONLY for local dev convenience; INSTALLATION.md
@@ -96,9 +100,108 @@ def analyze_upload():
     file.save(save_path)
 
     result = analyze_file(save_path, file.filename)
-    os.remove(save_path)  # don't persist uploads - privacy principle
-
+    os.remove(save_path)
+    session["last_analysis"] = result.to_session_dict()
+    session["chat_history"] = []
     return render_template("analyze_results.html", result=result)
+
+@app.route("/chat", methods=["POST"])
+@require_auth
+def chat():
+    """
+    Multi-turn chat endpoint. Each request receives:
+    - The user's new question
+    - The full conversation history so far (from session)
+    - The structured analysis context (from session)
+
+    Returns a JSON response with the AI's answer.
+    The AI never sees raw log content - only the structured
+    incident evidence, same as the investigation layer.
+    """
+    if "last_analysis" not in session:
+        return jsonify({"error": "No analysis context found. Please upload a file first."}), 400
+
+    data = request.get_json()
+    if not data or "question" not in data:
+        return jsonify({"error": "No question provided."}), 400
+
+    question = data["question"].strip()
+    if not question:
+        return jsonify({"error": "Empty question."}), 400
+
+    analysis = session["last_analysis"]
+    chat_history = session.get("chat_history", [])
+
+    # Build context from structured incident data ONLY
+    context_parts = [
+        f"File analyzed: {analysis['filename']}",
+        f"Format: {analysis['format_detected']}",
+        f"Events parsed: {analysis['events_parsed']}",
+        f"Incidents found: {len(analysis['incidents'])}",
+    ]
+
+    for inc in analysis["incidents"]:
+        context_parts.append(
+            f"\nIncident: {inc['title']} | Severity: {inc['severity']} | "
+            f"Risk: {inc['risk_score']}/100 | Identity: {inc['correlation_key']} | "
+            f"MITRE: {', '.join(inc['mitre_techniques'])} | "
+            f"First seen: {inc['first_seen']} | Last seen: {inc['last_seen']}"
+        )
+        for d in inc["detections"]:
+            context_parts.append(f"  Detection: {d['rule_name']} - {d['description']}")
+
+        if inc.get("key_events"):
+            context_parts.append(f"  Raw events ({len(inc['key_events'])} shown):")
+            for e in inc["key_events"]:
+                parts = []
+                if e.get("timestamp"): parts.append(f"time={e['timestamp']}")
+                if e.get("src_ip"): parts.append(f"src_ip={e['src_ip']}")
+                if e.get("dst_ip"): parts.append(f"dst_ip={e['dst_ip']}")
+                if e.get("user"): parts.append(f"user={e['user']}")
+                if e.get("host"): parts.append(f"host={e['host']}")
+                if e.get("status"): parts.append(f"status={e['status']}")
+                context_parts.append(f"    event: {' | '.join(parts)}")
+
+    context = "\n".join(context_parts)
+
+    # Build conversation history for multi-turn
+    history_text = ""
+    if chat_history:
+        history_text = "\n\nPrevious conversation:\n"
+        for turn in chat_history[-6:]:  # last 6 turns max to avoid context overflow
+            history_text += f"Analyst: {turn['question']}\nAI: {turn['answer']}\n"
+
+    system_prompt = f"""You are a SOC analyst assistant helping investigate a specific security incident.
+You have access to the structured analysis results below. Answer the analyst's questions
+based ONLY on this data. Be specific, concise, and actionable.
+Do not invent data that isn't in the analysis. If you don't know something from the
+available data, say so clearly rather than guessing.
+
+ANALYSIS CONTEXT:
+{context}
+{history_text}"""
+
+    full_prompt = f"{system_prompt}\n\nAnalyst question: {question}\n\nAnswer:"
+
+    try:
+        import requests as req
+        OLLAMA_BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        response = req.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json={"model": "qwen3:8b", "prompt": full_prompt, "stream": False},
+            timeout=60,
+        )
+        response.raise_for_status()
+        answer = response.json()["response"].strip()
+    except Exception as e:
+        return jsonify({"error": f"AI unavailable: {str(e)[:100]}"}), 503
+
+    # Store in session for multi-turn continuity
+    chat_history.append({"question": question, "answer": answer})
+    session["chat_history"] = chat_history
+    session.modified = True
+
+    return jsonify({"answer": answer, "turn": len(chat_history)})
 
 
 @app.errorhandler(404)
