@@ -2,6 +2,7 @@
 {% block title %}Incidents - Private AI SOC{% endblock %}
 {% block content %}
 <h1>🛡️ Private AI SOC — Incident Queue</h1>
+<a href="/analyze" style="float:right; background:#21262d; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.9rem;">🔍 Analyze a log file</a>
 <p>{{ incidents|length }} open incident(s) shown, {{ total }} total in store.</p>
 
 {% if not incidents %}

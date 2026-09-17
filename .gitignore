@@ -48,3 +48,4 @@ node_modules/
 # Test coverage reports
 .coverage
 htmlcov/
+data/uploads/

@@ -3,11 +3,14 @@
 import os
 import secrets
 from functools import wraps
+from pathlib import Path
 from flask import request, Response
 from flask import Flask, render_template, abort
 from src.incidents.store import IncidentStore
 from src.models.incident_schema import IncidentStatus
 from src.dashboard.timeline import build_timeline_entries
+from werkzeug.utils import secure_filename
+from src.pipeline.file_analyzer import analyze_file
 
 DB_PATH = "data/processed/soc_incidents.db"
 
@@ -60,27 +63,42 @@ def get_store() -> IncidentStore:
     return IncidentStore(DB_PATH)
 
 
-@app.route("/")
-@require_auth
-def index():
-    store = get_store()
-    incidents = [
-        i for i in store.get_all()
-        if i.status in (IncidentStatus.OPEN, IncidentStatus.INVESTIGATING)
-    ]
-    incidents.sort(key=lambda i: i.risk_score, reverse=True)
-    return render_template("index.html", incidents=incidents, total=len(store.get_all()))
+UPLOAD_FOLDER = "data/uploads"
+ALLOWED_EXTENSIONS = {".json", ".log", ".txt", ".pcap", ".pcapng", ".cap"}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-@app.route("/incident/<incident_id>")
+@app.route("/analyze", methods=["GET"])
 @require_auth
-def incident_detail(incident_id):
-    store = get_store()
-    incident = store.get_by_id(incident_id)
-    if not incident:
-        abort(404)
-    timeline = build_timeline_entries(incident)
-    return render_template("detail.html", incident=incident, timeline=timeline)
+def analyze_page():
+    return render_template("analyze.html")
+
+
+@app.route("/analyze", methods=["POST"])
+@require_auth
+def analyze_upload():
+    if "logfile" not in request.files:
+        return render_template("analyze.html", error="No file uploaded.")
+
+    file = request.files["logfile"]
+    if not file.filename:
+        return render_template("analyze.html", error="No file selected.")
+
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return render_template(
+            "analyze.html",
+            error=f"File type '{ext}' not supported. Supported: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
+
+    filename = secure_filename(file.filename)
+    save_path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(save_path)
+
+    result = analyze_file(save_path, file.filename)
+    os.remove(save_path)  # don't persist uploads - privacy principle
+
+    return render_template("analyze_results.html", result=result)
 
 
 @app.errorhandler(404)

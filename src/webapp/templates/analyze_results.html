@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Analysis Results - Private AI SOC{% endblock %}
+{% block content %}
+<a href="/analyze" class="back">← Analyze another file</a>
+<h1>Analysis Results: {{ result.filename }}</h1>
+
+<div class="section">
+    <strong>Format detected:</strong> {{ result.format_detected }}<br>
+    <strong>Events parsed:</strong> {{ result.events_parsed }}<br>
+    <strong>Incidents found:</strong> {{ result.incidents|length }}
+    {% if result.parse_warning %}
+    <p style="color:#d29922; margin-top:0.5rem;">⚠️ {{ result.parse_warning }}</p>
+    {% endif %}
+</div>
+
+{% if result.errors %}
+<div class="section" style="border-color:#f85149;">
+    {% for error in result.errors %}
+    <p style="color:#f85149;">⚠️ {{ error }}</p>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not result.incidents %}
+<div class="section">
+    <p>✅ No incidents detected. The log file did not match any known threat patterns.</p>
+    <p style="color:#8b949e; font-size:0.9rem;">
+        This could mean the activity is benign, or the log format did not produce
+        enough context for the current detection rules. Review the parsed event count above.
+    </p>
+</div>
+{% else %}
+{% for incident in result.incidents %}
+<div class="section" style="border-left: 4px solid {{ '#f85149' if incident.severity in ('high','critical') else '#d29922' }};">
+    <h2 style="margin-top:0;">
+        <span class="sev-{{ incident.severity }}">{{ incident.severity|upper }}</span>
+        — {{ incident.title }}
+    </h2>
+
+    <table style="width:auto; margin-bottom:1rem;">
+        <tr><td style="color:#8b949e; padding-right:1rem;">Risk Score</td><td>{{ incident.risk_score }}/100</td></tr>
+        <tr><td style="color:#8b949e; padding-right:1rem;">Priority</td><td>{{ incident.priority.value if incident.priority.value else incident.priority }}</td></tr>
+        <tr><td style="color:#8b949e; padding-right:1rem;">MITRE Technique</td>
+            <td>{% for t in incident.mitre_techniques %}
+                <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/"
+                   target="_blank" class="badge">{{ t }}</a>
+                {% endfor %}
+            </td>
+        </tr>
+        <tr><td style="color:#8b949e; padding-right:1rem;">Affected Identity</td><td>{{ incident.correlation_key }}</td></tr>
+    </table>
+
+    <h3>What Happened</h3>
+    {% if result.ai_summaries.get(incident.incident_id) %}
+    {% set verdict = result.ai_summaries[incident.incident_id] %}
+    <p>{{ verdict.summary }}</p>
+    <p style="color:#8b949e; font-size:0.9rem;"><em>AI confidence note: {{ verdict.analyst_confidence_note }}</em></p>
+
+    <h3>MITRE Attack Stage</h3>
+    <p>{{ verdict.likely_attack_stage }}</p>
+
+    <h3>Recommended Remediation Steps</h3>
+    <ol>
+    {% for action in verdict.recommended_actions %}
+        <li style="margin-bottom:0.4rem;">{{ action }}</li>
+    {% endfor %}
+    </ol>
+    {% else %}
+    <p style="color:#8b949e;">AI investigation unavailable (Ollama not running or timed out).
+    The incident was detected and scored by deterministic rules — see below for detection details.</p>
+    {% endif %}
+
+    <h3>Detection Evidence</h3>
+    <ul>
+    {% for d in incident.detections %}
+        <li><strong>{{ d.rule_name }}</strong> (confidence={{ d.confidence }})<br>
+        <small>{{ d.description }}</small></li>
+    {% endfor %}
+    </ul>
+</div>
+{% endfor %}
+{% endif %}
+
+<div style="margin-top:2rem; color:#8b949e; font-size:0.85rem;">
+    All analysis performed locally. No data was sent to external services.
+    Uploaded file deleted after analysis.
+</div>
+{% endblock %}

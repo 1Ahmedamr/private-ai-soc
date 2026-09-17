@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Analyze Log File - Private AI SOC{% endblock %}
+{% block content %}
+<h1>🔍 Analyze a Log File</h1>
+<p>Upload any supported log file. It will be analyzed through the full
+detection pipeline and the AI will provide an assessment with remediation steps.</p>
+
+<div class="section">
+    <form method="POST" enctype="multipart/form-data">
+        <label for="logfile" style="display:block; margin-bottom:0.5rem; color:#8b949e;">
+            Select log file:
+        </label>
+        <input type="file" id="logfile" name="logfile"
+               accept=".json,.log,.txt,.pcap,.pcapng,.cap"
+               style="color:#c9d1d9; margin-bottom:1rem; display:block;">
+        <br>
+        <button type="submit"
+                style="background:#238636; color:white; border:none; padding:0.6rem 1.4rem;
+                       border-radius:6px; cursor:pointer; font-size:1rem;">
+            Analyze →
+        </button>
+    </form>
+    {% if error %}
+    <p style="color:#f85149; margin-top:1rem;">⚠️ {{ error }}</p>
+    {% endif %}
+</div>
+
+<div class="section" style="color:#8b949e; font-size:0.9rem;">
+    <strong>Supported formats:</strong><br>
+    Windows Event Log (JSON) · Linux SSH Auth (JSON) · Zeek conn.log (JSON) ·
+    Suricata EVE JSON · Firewall logs (plain text) · PCAP files
+    <br><br>
+    <strong>Privacy:</strong> Uploaded files are deleted immediately after analysis.
+    No log data is persisted to disk beyond the analysis session.
+</div>
+{% endblock %}
