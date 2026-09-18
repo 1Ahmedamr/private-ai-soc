@@ -126,7 +126,10 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
     result.events_parsed = len(events)
 
     orchestrator = PipelineOrchestrator(EventStore(), IncidentStore(), _load_asset_inventory())
-    incidents = orchestrator.ingest(events)
+    if fmt == "pcap":
+        incidents = orchestrator.ingest_pcap(file_path)
+    else:
+        incidents = orchestrator.ingest(events)
     result.incidents = incidents
 
     for incident in incidents:

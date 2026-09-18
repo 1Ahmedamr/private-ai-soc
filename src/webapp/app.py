@@ -100,7 +100,10 @@ def analyze_upload():
     file.save(save_path)
 
     result = analyze_file(save_path, file.filename)
-    os.remove(save_path)
+    try:
+        os.remove(save_path)
+    except FileNotFoundError:
+        pass  # file already cleaned up by the pipeline (e.g. pcap_processor temp dir handling)
     session["last_analysis"] = result.to_session_dict()
     session["chat_history"] = []
     return render_template("analyze_results.html", result=result)

@@ -19,48 +19,42 @@ SEVERITY_WEIGHTS = {
 }
 
 MAX_EVIDENCE_BONUS = 20      # cap on how much "more evidence" can add to the score
-EVIDENCE_BONUS_PER_DETECTION = 5   # each additional detection adds this much (capped)
+EVIDENCE_BONUS_PER_DETECTION = 5
 
 CRITICAL_ASSET_MULTIPLIER = 1.3    # asset importance boosts final score
 
 
 def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) -> int:
-    """
-    Calculates a 0-100 risk score for an incident.
-
-    Formula (in plain terms):
-    1. Start from the base severity weight (e.g. HIGH = 60)
-    2. Add a bonus for how much corroborating evidence exists
-       (more detections = more confidence this is real, not noise)
-    3. Weight by average confidence across all detections
-       (low-confidence detections shouldn't inflate the score much)
-    4. Multiply by asset importance if this affects a critical asset
-       (e.g. Domain Controller vs a regular workstation)
-    5. Clamp the final result to [0, 100]
-    """
-
     base_score = SEVERITY_WEIGHTS[incident.severity]
 
-    # Evidence bonus: more detections = more corroborating proof
     evidence_count = len(incident.detections)
     evidence_bonus = min(
         (evidence_count - 1) * EVIDENCE_BONUS_PER_DETECTION,
         MAX_EVIDENCE_BONUS,
     )
-    evidence_bonus = max(evidence_bonus, 0)  # never negative
+    evidence_bonus = max(evidence_bonus, 0)
 
-    # Average confidence across all detections in this incident
+    # Volume bonus: large event counts indicate high-confidence, sustained activity
+    # A single-packet detection vs 1700+ SYN packets deserve different scores
+    event_count = len(incident.events)
+    if event_count >= 1000:
+        volume_bonus = 15
+    elif event_count >= 100:
+        volume_bonus = 10
+    elif event_count >= 10:
+        volume_bonus = 5
+    else:
+        volume_bonus = 0
+
     if incident.detections:
         avg_confidence = sum(d.confidence for d in incident.detections) / len(incident.detections)
     else:
         avg_confidence = 1.0
 
-    raw_score = (base_score + evidence_bonus) * avg_confidence
+    raw_score = (base_score + evidence_bonus + volume_bonus) * avg_confidence
 
     if is_critical_asset:
         raw_score *= CRITICAL_ASSET_MULTIPLIER
 
-    # Clamp to 0-100
     final_score = max(0, min(100, round(raw_score)))
-
     return final_score

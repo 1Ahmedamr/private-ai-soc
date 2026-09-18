@@ -53,7 +53,10 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         risk_score=incident.risk_score,
         correlation_key=incident.correlation_key,
         mitre_techniques=incident.mitre_techniques,
-        detection_descriptions=[d.description for d in incident.detections],
+        detection_descriptions=[
+            f"{d.description} [events: {len(incident.events)}]"
+            for d in incident.detections
+        ],
         event_count=len(incident.events),
         first_seen=incident.first_seen.isoformat(),
         last_seen=incident.last_seen.isoformat(),

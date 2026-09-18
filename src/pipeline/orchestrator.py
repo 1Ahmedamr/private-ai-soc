@@ -60,6 +60,55 @@ class PipelineOrchestrator:
                 self.investigate_incident(incident, self.incident_engine.store)
 
         return incidents
+    def ingest_pcap(self, pcap_path: str, is_critical_asset: bool = False) -> list:
+        """
+        PCAP-specific ingestion: unlike single-source log files where all
+        events share one identity, a PCAP contains traffic from MANY hosts.
+        We must split events by (src_ip, dst_ip) identity groups and run
+        detection on each group independently, otherwise the correlation
+        key picks the first host and discards everyone else's traffic.
+        """
+        from src.pipeline.pcap_processor import process_pcap
+        from src.incidents.correlation_key import extract_correlation_key
+
+        all_events = process_pcap(pcap_path)
+        if not all_events:
+            return []
+
+        # Group events by src_ip — each unique source is a separate
+        # "actor" that needs independent detection
+        from collections import defaultdict
+        groups: dict = defaultdict(list)
+        for event in all_events:
+            key = event.src_ip or event.host or "unknown"
+            groups[key].append(event)
+
+        print(f"[PCAP Orchestrator] Processing {len(all_events)} events "
+              f"across {len(groups)} unique source IPs")
+
+        all_incidents = []
+        for src_ip, group_events in groups.items():
+            if len(group_events) < 2:
+                continue  # skip single-packet sources, not worth correlating
+
+            detections = self.detection_engine.analyze(group_events)
+            qualifying = [d for d in detections if d.triggered]
+            if not qualifying:
+                continue
+
+            # Use the actual src_ip as correlation key directly
+            from src.incidents.correlation_key import filter_events_by_correlation_key
+            correlation_key = f"ip:{src_ip}"
+
+            self.event_store.save_events(group_events)
+
+            incidents = self.incident_engine.process(
+                group_events, qualifying, is_critical_asset
+            )
+            all_incidents.extend(incidents)
+
+        print(f"[PCAP Orchestrator] Created {len(all_incidents)} incident(s)")
+        return all_incidents
     def _resolve_criticality(self, events: List[NormalizedEvent]) -> bool:
         for event in events:
             if self.asset_inventory.is_critical_or_important(event.host, event.dst_ip):

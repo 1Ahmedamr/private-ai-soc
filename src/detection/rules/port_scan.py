@@ -17,12 +17,6 @@ def _detect_port_scan_pattern(
     confidence: float,
     reopen_window_hours: int,
 ) -> DetectionResult:
-    """
-    Shared core logic for both fast and slow/low-and-slow port scan
-    detection. Same signature (many distinct ports, no response, same
-    source->destination pair) - only the time window and how confident
-    we are differ between the two variants.
-    """
     candidate_events = [
         e for e in events
         if e.event_type == EventType.NETWORK_CONNECTION and e.conn_state == "S0"
@@ -30,11 +24,9 @@ def _detect_port_scan_pattern(
 
     if len(candidate_events) < unique_ports_threshold:
         return DetectionResult(
-            rule_name=rule_name,
-            rule_id=rule_id,
-            triggered=False,
+            rule_name=rule_name, rule_id=rule_id, triggered=False,
             severity=Severity.INFO,
-            description=f"Only {len(candidate_events)} unanswered connections found; below threshold.",
+            description=f"Only {len(candidate_events)} unanswered connections; below threshold.",
             confidence=1.0,
         )
 
@@ -45,19 +37,23 @@ def _detect_port_scan_pattern(
         grouped.setdefault(key, []).append(event)
 
     for (src, dst), group_events in grouped.items():
-        # Sliding window over this group, same principle as brute_force's fix -
-        # find ANY window-sized stretch with enough distinct ports, rather
-        # than checking only the group's overall first-to-last span.
         left = 0
         for right in range(len(group_events)):
             while group_events[right].timestamp - group_events[left].timestamp > window:
                 left += 1
             windowed_slice = group_events[left:right + 1]
-            unique_ports = {e.dst_port for e in windowed_slice}
+            unique_ports_in_window = {e.dst_port for e in windowed_slice}
 
-            if len(unique_ports) >= unique_ports_threshold:
+            if len(unique_ports_in_window) >= unique_ports_threshold:
+                # Trigger confirmed — now count the FULL extent of the scan
+                # not just the threshold-triggering window
+                all_ports = {e.dst_port for e in group_events}
+                first_ts = group_events[0].timestamp
+                last_ts = group_events[-1].timestamp
+                total_duration = (last_ts - first_ts).total_seconds()
+                trigger_span = (group_events[right].timestamp - group_events[left].timestamp).total_seconds()
+
                 technique = get_technique("T1046")
-                span = group_events[right].timestamp - group_events[left].timestamp
                 return DetectionResult(
                     rule_name=rule_name,
                     rule_id=rule_id,
@@ -66,23 +62,26 @@ def _detect_port_scan_pattern(
                     mitre_technique=technique.technique_id if technique else "T1046",
                     mitre_tactic=technique.tactic if technique else "Discovery",
                     description=(
-                        f"{rule_name}: source '{src}' probed {len(unique_ports)} "
-                        f"distinct ports on destination '{dst}' within "
-                        f"{span.total_seconds():.0f} seconds, with no successful responses."
+                        f"{rule_name}: source '{src}' scanned {len(all_ports)} unique ports "
+                        f"on destination '{dst}'. "
+                        f"Total SYN packets: {len(group_events)} | "
+                        f"Total unique ports: {len(all_ports)} | "
+                        f"First seen: {first_ts.isoformat()} | "
+                        f"Last seen: {last_ts.isoformat()} | "
+                        f"Total duration: {total_duration:.1f}s | "
+                        f"Alert triggered after {unique_ports_threshold} unique ports "
+                        f"detected within {trigger_span:.1f}s window."
                     ),
                     confidence=confidence,
                     reopen_window_hours=reopen_window_hours,
                 )
 
     return DetectionResult(
-        rule_name=rule_name,
-        rule_id=rule_id,
-        triggered=False,
+        rule_name=rule_name, rule_id=rule_id, triggered=False,
         severity=Severity.INFO,
-        description="Unanswered connections found but not matching the scan pattern within the required window.",
+        description="Unanswered connections found but not matching the scan pattern.",
         confidence=1.0,
     )
-
 
 def detect_port_scan(
     events: List[NormalizedEvent],

@@ -38,7 +38,7 @@
     </h2>
     <table style="width:auto; margin-bottom:1rem;">
         <tr><td style="color:#8b949e; padding-right:1rem;">Risk Score</td><td>{{ incident.risk_score }}/100</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">Priority</td><td>{{ incident.priority }}</td></tr>
+        <tr><td style="color:#8b949e; padding-right:1rem;">Priority</td><td>{{ incident.priority.replace('IncidentPriority.', '') }}</td></tr>
         <tr><td style="color:#8b949e; padding-right:1rem;">MITRE</td>
             <td>{% for t in incident.mitre_techniques %}
                 <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/"
