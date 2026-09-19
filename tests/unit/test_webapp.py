@@ -15,6 +15,8 @@ def auth_header():
 @pytest.fixture
 def client():
     app.config["TESTING"] = True
+    app.config["SECRET_KEY"] = "test-secret-key-fixed"
+    # Do NOT disable auth for these tests - we're specifically testing auth behavior
     with app.test_client() as client:
         yield client
 

@@ -1,33 +1,27 @@
 # src/ai/evidence.py
 
-from pydantic import BaseModel
 from typing import List
 from src.models.incident_schema import Incident
 from src.knowledge.index import KnowledgeBase
+from pydantic import BaseModel
 
 
 class InvestigationEvidence(BaseModel):
-    """
-    This is the ENTIRE contract of what the AI is allowed to see.
-    Notice what's deliberately excluded: raw_data blobs, full event
-    objects, anything not already validated/decided by deterministic
-    code. The AI reasons about CONCLUSIONS our engine already reached,
-    not raw material it could misinterpret or be manipulated by
-    (prompt injection risk - Phase 15 of the roadmap, addressed here
-    concretely instead of just mentioned).
-    """
     incident_id: str
     title: str
-    severity: str              # already decided by Detection Engine - AI does not re-decide this
-    risk_score: int             # already decided by Risk Scoring - AI does not re-decide this
+    severity: str
+    risk_score: int
     correlation_key: str
     mitre_techniques: List[str]
-    detection_descriptions: List[str]   # human-readable summaries, not raw log lines
+    mitre_tactic: str = ""
+    detection_descriptions: List[str]
     event_count: int
     first_seen: str
     last_seen: str
     is_reopened_incident: bool
     relevant_playbook_excerpts: List[str] = []
+    source_ips: list = []
+    target_ips: list = []
 
 
 _knowledge_base = None
@@ -46,6 +40,20 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
     query = f"{incident.title} {' '.join(d.description for d in incident.detections)}"
     relevant_chunks = [chunk for chunk, score in kb.query(query, top_k=2) if score > 0.3]
 
+    source_ips = []
+    target_ips = []
+    if incident.correlation_key.startswith("ip:"):
+        source_ips = [incident.correlation_key.split("ip:")[1]]
+    for event in incident.events[:20]:
+        if event.dst_ip and event.dst_ip not in target_ips:
+            target_ips.append(event.dst_ip)
+
+    mitre_tactic = ""
+    for d in incident.detections:
+        if d.mitre_tactic:
+            mitre_tactic = d.mitre_tactic
+            break
+
     return InvestigationEvidence(
         incident_id=incident.incident_id,
         title=incident.title,
@@ -53,6 +61,7 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         risk_score=incident.risk_score,
         correlation_key=incident.correlation_key,
         mitre_techniques=incident.mitre_techniques,
+        mitre_tactic=mitre_tactic,
         detection_descriptions=[
             f"{d.description} [events: {len(incident.events)}]"
             for d in incident.detections
@@ -62,4 +71,6 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         last_seen=incident.last_seen.isoformat(),
         is_reopened_incident=len(incident.related_incident_ids) > 0,
         relevant_playbook_excerpts=relevant_chunks,
+        source_ips=source_ips,
+        target_ips=target_ips[:5],
     )

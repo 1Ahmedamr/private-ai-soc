@@ -69,8 +69,8 @@ def _detect_port_scan_pattern(
                         f"First seen: {first_ts.isoformat()} | "
                         f"Last seen: {last_ts.isoformat()} | "
                         f"Total duration: {total_duration:.1f}s | "
-                        f"Alert triggered after {unique_ports_threshold} unique ports "
-                        f"detected within {trigger_span:.1f}s window."
+                        f"Alert triggered after {unique_ports_threshold} unique ports detected"
+                        f"{' within <1 second' if trigger_span < 1 else f' within {trigger_span:.1f}s'}."
                     ),
                     confidence=confidence,
                     reopen_window_hours=reopen_window_hours,

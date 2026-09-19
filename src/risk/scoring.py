@@ -38,9 +38,9 @@ def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) ->
     # A single-packet detection vs 1700+ SYN packets deserve different scores
     event_count = len(incident.events)
     if event_count >= 1000:
-        volume_bonus = 15
+        volume_bonus = 25   # was 15 — 1714 ports in 11s is aggressive
     elif event_count >= 100:
-        volume_bonus = 10
+        volume_bonus = 15   # was 10
     elif event_count >= 10:
         volume_bonus = 5
     else:

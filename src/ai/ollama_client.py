@@ -24,6 +24,19 @@ You must NOT change, second-guess, or override the given severity or risk
 score - those are not yours to decide. Respond ONLY with valid JSON matching
 this exact shape, nothing else:
 {"summary": "...", "likely_attack_stage": "...", "recommended_actions": ["...","..."], "analyst_confidence_note": "..."}
+
+CRITICAL: When mentioning IP addresses, copy them EXACTLY from the
+evidence data. Never modify, approximate, or retype IP addresses from
+memory - always read them directly from the source_ips and target_ips
+fields provided. An incorrect IP in a SOC report can cause analysts
+to investigate the wrong host.
+...rest of prompt...
+
+When identifying the MITRE attack stage, use the tactic from the
+mitre_techniques field directly. For T1046 (Network Service Discovery),
+the correct tactic is 'Discovery', NOT 'Initial Access'. For T1110
+(Brute Force), the correct tactic is 'Credential Access'. Always
+derive the attack stage from the provided MITRE technique data.
 """
 
 
@@ -40,8 +53,16 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
             "specific incident):\n" + "\n---\n".join(evidence.relevant_playbook_excerpts)
         )
 
-    prompt = f"{SYSTEM_PROMPT}\n\nEvidence:\n{evidence.model_dump_json(indent=2)}{playbook_section}"
+    tactic_instruction = ""
+    if evidence.mitre_tactic:
+        tactic_instruction = (
+            f"\n\nCRITICAL INSTRUCTION: The MITRE tactic for this incident is "
+            f"'{evidence.mitre_tactic}'. You MUST use this exact tactic name as "
+            f"the 'likely_attack_stage' field in your response. Do not substitute "
+            f"a different tactic. This is non-negotiable."
+        )
 
+    prompt = f"{SYSTEM_PROMPT}\n\nEvidence:\n{evidence.model_dump_json(indent=2)}{playbook_section}{tactic_instruction}"
     try:
         response = requests.post(
             f"{OLLAMA_BASE_URL}/api/generate",

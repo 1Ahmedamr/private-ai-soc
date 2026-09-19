@@ -44,7 +44,7 @@
                 <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/"
                    target="_blank" class="badge">{{ t }}</a>
                 {% endfor %}</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">Affected Identity</td><td>{{ incident.correlation_key }}</td></tr>
+        <tr><td style="color:#8b949e; padding-right:1rem;">Source (Scanner)</td><td>{{ incident.correlation_key }}</td></tr>
     </table>
 
     {% if result.ai_summaries.get(incident.incident_id) %}

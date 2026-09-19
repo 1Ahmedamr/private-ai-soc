@@ -29,7 +29,7 @@ def test_single_failed_login_triggers():
 
 def test_successful_login_does_not_trigger():
     event = make_failed_login_event()
-    event.status = "success"
+    event = event.model_copy(update={"status": "success"})
     result = detect_failed_login(event)
     assert result.triggered is False
 
