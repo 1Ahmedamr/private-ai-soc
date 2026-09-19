@@ -45,24 +45,38 @@ def _detect_port_scan_pattern(
             unique_ports_in_window = {e.dst_port for e in windowed_slice}
 
             if len(unique_ports_in_window) >= unique_ports_threshold:
-                # Trigger confirmed — now count the FULL extent of the scan
-                # not just the threshold-triggering window
                 all_ports = {e.dst_port for e in group_events}
                 first_ts = group_events[0].timestamp
                 last_ts = group_events[-1].timestamp
                 total_duration = (last_ts - first_ts).total_seconds()
                 trigger_span = (group_events[right].timestamp - group_events[left].timestamp).total_seconds()
 
+                # Reclassify: if total scan duration > 5 minutes, it is
+                # a slow/distributed scan regardless of how the trigger window fired.
+                # A scan that hits 5 ports fast then continues for hours is slow by nature.
+                if total_duration > 300:
+                    actual_rule_name = "Port Scan Detection (Slow / Low-and-Slow)"
+                    actual_rule_id = "SOC-NET-003"
+                    actual_severity = Severity.MEDIUM
+                    actual_confidence = 0.65
+                    actual_reopen = 168
+                else:
+                    actual_rule_name = rule_name
+                    actual_rule_id = rule_id
+                    actual_severity = severity
+                    actual_confidence = confidence
+                    actual_reopen = reopen_window_hours
+
                 technique = get_technique("T1046")
                 return DetectionResult(
-                    rule_name=rule_name,
-                    rule_id=rule_id,
+                    rule_name=actual_rule_name,
+                    rule_id=actual_rule_id,
                     triggered=True,
-                    severity=severity,
+                    severity=actual_severity,
                     mitre_technique=technique.technique_id if technique else "T1046",
                     mitre_tactic=technique.tactic if technique else "Discovery",
                     description=(
-                        f"{rule_name}: source '{src}' scanned {len(all_ports)} unique ports "
+                        f"{actual_rule_name}: source '{src}' scanned {len(all_ports)} unique ports "
                         f"on destination '{dst}'. "
                         f"Total SYN packets: {len(group_events)} | "
                         f"Total unique ports: {len(all_ports)} | "
@@ -72,8 +86,8 @@ def _detect_port_scan_pattern(
                         f"Alert triggered after {unique_ports_threshold} unique ports detected"
                         f"{' within <1 second' if trigger_span < 1 else f' within {trigger_span:.1f}s'}."
                     ),
-                    confidence=confidence,
-                    reopen_window_hours=reopen_window_hours,
+                    confidence=actual_confidence,
+                    reopen_window_hours=actual_reopen,
                 )
 
     return DetectionResult(
@@ -83,12 +97,12 @@ def _detect_port_scan_pattern(
         confidence=1.0,
     )
 
+
 def detect_port_scan(
     events: List[NormalizedEvent],
     unique_ports_threshold: int = 5,
     window_seconds: int = 10,
 ) -> DetectionResult:
-    """Fast port scan: many ports probed within seconds - classic automated scanner (e.g. Nmap default timing)."""
     return _detect_port_scan_pattern(
         events,
         unique_ports_threshold=unique_ports_threshold,
@@ -106,16 +120,6 @@ def detect_slow_port_scan(
     unique_ports_threshold: int = 5,
     window_hours: int = 6,
 ) -> DetectionResult:
-    """
-    Slow / low-and-slow port scan: same signature, spread across hours
-    instead of seconds - a deliberate evasion technique to dodge fast,
-    short-window detections.
-
-    Why LOWER severity/confidence than the fast variant?
-    A pattern spread across hours is more ambiguous - it could be an
-    evasive attacker, or coincidental unrelated failures. We still
-    surface it for an analyst, just with appropriately tempered confidence.
-    """
     return _detect_port_scan_pattern(
         events,
         unique_ports_threshold=unique_ports_threshold,
@@ -124,5 +128,5 @@ def detect_slow_port_scan(
         rule_id="SOC-NET-003",
         severity=Severity.MEDIUM,
         confidence=0.6,
-        reopen_window_hours=168,  # 7 days
+        reopen_window_hours=168,
     )
