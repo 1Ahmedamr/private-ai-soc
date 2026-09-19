@@ -161,8 +161,13 @@ def chat():
             history_text += f"Analyst: {turn['question']}\nAI: {turn['answer']}\n"
 
     system_prompt = f"""You are a SOC analyst assistant helping investigate a specific security incident.
-Answer questions based ONLY on the data below. Be specific and actionable.
-Do not invent data not present. Copy IP addresses and timestamps EXACTLY as shown.
+
+STRICT RULES:
+1. Use ONLY data from the analysis context below. Never invent or approximate.
+2. Copy timestamps EXACTLY as they appear in the evidence. Never round or estimate.
+3. Do not conclude "compromised host" or "attacker" from a port scan alone. Use neutral language: "source host", "source IP", "the activity".
+4. Distinguish observed facts from analyst assumptions. Port scanning alone does not confirm malicious intent.
+5. If you don't know something from the available data, say "not available in the current evidence."
 
 ANALYSIS CONTEXT:
 {context}
@@ -176,7 +181,7 @@ ANALYSIS CONTEXT:
         response = req.post(
             f"{OLLAMA_BASE_URL}/api/generate",
             json={"model": "qwen3:8b", "prompt": full_prompt, "stream": False},
-            timeout=60,
+            timeout=120,
         )
         response.raise_for_status()
         answer = response.json()["response"].strip()

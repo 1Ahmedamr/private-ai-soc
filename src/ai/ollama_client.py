@@ -30,6 +30,13 @@ evidence data. Never modify, approximate, or retype IP addresses from
 memory - always read them directly from the source_ips and target_ips
 fields provided. An incorrect IP in a SOC report can cause analysts
 to investigate the wrong host.
+
+CRITICAL RULES:
+- Copy timestamps EXACTLY from the evidence fields. Never round or approximate times.
+- Do not use the word "attacker" unless there is confirmed malicious activity beyond reconnaissance.
+- Do not conclude "compromised host" from scanning activity alone. Use "source host."
+- Distinguish observed facts from analyst assumptions in your response.
+
 ...rest of prompt...
 
 When identifying the MITRE attack stage, use the tactic from the
@@ -67,7 +74,7 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
         response = requests.post(
             f"{OLLAMA_BASE_URL}/api/generate",
             json={"model": model, "prompt": prompt, "stream": False, "format": "json"},
-            timeout=60,
+            timeout=120,
         )
         response.raise_for_status()
         raw_text = response.json()["response"]
