@@ -49,9 +49,15 @@ class IncidentEngine:
 
             if existing_incident and existing_incident.status != IncidentStatus.CLOSED:
                 existing_incident.add_detection(detection)
-                existing_incident.events.extend(
-                    e for e in relevant_events if e not in existing_incident.events
-                )
+                existing_ids = {
+                    (e.timestamp, e.source, e.event_id, e.src_ip, e.dst_ip)
+                    for e in existing_incident.events
+                }
+                new_events = [
+                    e for e in relevant_events
+                    if (e.timestamp, e.source, e.event_id, e.src_ip, e.dst_ip) not in existing_ids
+                ]
+                existing_incident.events.extend(new_events)
                 existing_incident.escalate_severity_if_needed(detection.severity)
                 existing_incident.last_seen = max(
                     existing_incident.last_seen,
