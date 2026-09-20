@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional, Literal
 from enum import Enum
+from ipaddress import ip_address
 
 
 class EventSource(str, Enum):
@@ -69,9 +70,10 @@ class NormalizedEvent(BaseModel):
     def validate_ip_format(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
-        parts = v.split(".")
-        if len(parts) != 4 or not all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
-            raise ValueError(f"Invalid IPv4 address format: {v}")
+        try:
+            ip_address(v)
+        except ValueError:
+            raise ValueError(f"Invalid IP address: {v}")
         return v
 
     model_config = {"use_enum_values": True}
