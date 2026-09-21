@@ -76,6 +76,15 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
             f"the 'likely_attack_stage' field in your response. Do not substitute "
             f"a different tactic. This is non-negotiable."
         )
+    else:
+        tactic_instruction = (
+            "\n\nCRITICAL INSTRUCTION: No MITRE tactic has been determined for "
+            "this incident by the detection engine. You MUST use exactly "
+            "'Unknown / Requires Investigation' as the 'likely_attack_stage' "
+            "field. Do NOT guess or infer a tactic such as Discovery, Command "
+            "and Control, or any other stage - only use a specific tactic name "
+            "if evidence.mitre_tactic was explicitly provided to you."
+        )
 
     prompt = f"{SYSTEM_PROMPT}\n\nEvidence:\n{evidence.model_dump_json(indent=2)}{playbook_section}{tactic_instruction}"
     try:
