@@ -1,6 +1,6 @@
 # src/ingestion/suricata_parser.py
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from src.models.event_schema import NormalizedEvent, EventSource, EventType, Severity
 from dateutil import parser as date_parser
@@ -24,8 +24,12 @@ def parse_suricata_alert(raw_event: dict) -> NormalizedEvent:
     else:
         mapped_severity = _SURICATA_SEVERITY_MAP.get(suricata_severity, Severity.MEDIUM)
 
+    parsed_timestamp = date_parser.isoparse(raw_event["timestamp"])
+    if parsed_timestamp.tzinfo is not None:
+        parsed_timestamp = parsed_timestamp.astimezone(timezone.utc)
+
     return NormalizedEvent(
-        timestamp=date_parser.isoparse(raw_event["timestamp"]),
+        timestamp=parsed_timestamp,
         source=EventSource.SURICATA,
         event_type=EventType.ALERT,
         src_ip=raw_event.get("src_ip"),
