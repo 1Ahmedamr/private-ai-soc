@@ -184,6 +184,17 @@ HARD RULES — violation is a serious error:
 - Suricata firing N times = "signature matched N times" NOT "N attacks occurred"
 - Attack Stage for ET MALWARE with no other evidence = "Suspected C2 / Requires Investigation" NOT "Compromise"
 - Copy timestamps EXACTLY character-for-character from evidence
+- NEVER invent specific details not present in the evidence above — no beacon
+  intervals, no payload contents, no timing patterns, no packet contents —
+  unless that exact detail appears in the ANALYSIS CONTEXT. If asked about
+  something not in the evidence, say "not available in the current evidence"
+- NEVER recommend isolating a host, blocking an IP, or other containment
+  actions as if they are the confirmed next step. A single signature match
+  is not sufficient justification for containment. Recommended Actions must
+  distinguish "Containment: not recommended yet — validate the alert first"
+  from "Next steps: review traffic, check endpoint telemetry" — do not
+  recommend containment unless the evidence shows corroborating signals
+  beyond a single detection
 
 ANALYSIS CONTEXT:
 {context}
