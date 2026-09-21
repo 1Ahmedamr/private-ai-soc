@@ -34,17 +34,50 @@ def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) ->
     )
     evidence_bonus = max(evidence_bonus, 0)
 
-    # Volume bonus: large event counts indicate high-confidence, sustained activity
-    # A single-packet detection vs 1700+ SYN packets deserve different scores
-    event_count = len(incident.events)
-    if event_count >= 1000:
-        volume_bonus = 25   # was 15 — 1714 ports in 11s is aggressive
-    elif event_count >= 100:
-        volume_bonus = 15   # was 10
-    elif event_count >= 10:
-        volume_bonus = 5
+    # Volume bonus: large event counts indicate high-confidence, sustained
+    # activity - BUT only when that volume happened in a short window.
+    # 355 packets over 2.85 hours (low-and-slow) is much less suspicious
+    # than 1714 packets in 11 seconds (aggressive), even though both are
+    # "high volume" by raw count. Scale the bonus down for spread-out activity.
+    # Prefer detection-scoped evidence (specific to what actually fired)
+    # over the incident's full correlated event list, which can include
+    # unrelated activity from the same host/IP and would otherwise
+    # overstate volume for a host that is simply generally active.
+    detections_with_evidence = [
+        d for d in incident.detections
+        if d.evidence_event_count is not None and d.evidence_duration_seconds is not None
+    ]
+    if detections_with_evidence:
+        d = max(detections_with_evidence, key=lambda d: d.evidence_event_count)
+        event_count = d.evidence_event_count
+        duration_seconds = max(d.evidence_duration_seconds, 1)
     else:
-        volume_bonus = 0
+        event_count = len(incident.events)
+        duration_seconds = max(
+            (incident.last_seen - incident.first_seen).total_seconds(), 1
+        )
+    events_per_minute = event_count / (duration_seconds / 60)
+
+    if event_count >= 1000:
+        base_volume_bonus = 25
+    elif event_count >= 100:
+        base_volume_bonus = 15
+    elif event_count >= 10:
+        base_volume_bonus = 5
+    else:
+        base_volume_bonus = 0
+
+    # Rate scaling: full bonus only for bursty activity (>=10 events/min).
+    # Below that, scale down linearly - low-and-slow activity shouldn't
+    # score the same as a fast burst just because the raw count is similar.
+    if events_per_minute >= 10:
+        rate_factor = 1.0
+    elif events_per_minute >= 1:
+        rate_factor = 0.5
+    else:
+        rate_factor = 0.25
+
+    volume_bonus = round(base_volume_bonus * rate_factor)
 
     if incident.detections:
         avg_confidence = sum(d.confidence for d in incident.detections) / len(incident.detections)

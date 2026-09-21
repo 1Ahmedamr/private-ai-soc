@@ -88,6 +88,8 @@ def _detect_port_scan_pattern(
                     ),
                     confidence=actual_confidence,
                     reopen_window_hours=actual_reopen,
+                    evidence_event_count=len(group_events),
+                    evidence_duration_seconds=total_duration,
                 )
 
     return DetectionResult(

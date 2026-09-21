@@ -28,3 +28,5 @@ class DetectionResult(BaseModel):
             "fast, C2 beacons may retry after weeks)."
         ),
     )
+    evidence_event_count: Optional[int] = None      # count specific to THIS detection, not the whole correlated incident
+    evidence_duration_seconds: Optional[float] = None  # duration specific to THIS detection's evidence window
