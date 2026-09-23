@@ -11,6 +11,8 @@ from src.detection.rules.suricata_signature_match import detect_suricata_alerts
 from src.detection.rules.suspicious_dns import detect_suspicious_dns
 from src.detection.rules.suspicious_powershell import detect_suspicious_powershell
 from src.detection.rules.c2_beacon import detect_c2_beacon
+from src.sigma.loader import get_sigma_rules
+from src.sigma.evaluator import SigmaMatch
 
 
 class DetectionEngine:
@@ -67,4 +69,49 @@ class DetectionEngine:
         for event in events:
             all_results.extend(self.run_single_event_rules(event))
         all_results.extend(self.run_batch_rules(events))
+        all_results.extend(self.run_sigma_rules(events))
         return all_results
+
+    
+    def run_sigma_rules(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
+        """
+        Runs all loaded Sigma rules against each event.
+        Pre-filtered by log source inside each rule's evaluate() method,
+        so Windows rules never run against Zeek events and vice versa.
+        This is what keeps the O(events × rules) cost manageable.
+        """
+        sigma_rules = get_sigma_rules()
+        if not sigma_rules:
+            return []
+
+        results = []
+        seen_rule_ids = set()  # deduplicate: same rule firing on multiple events = one result
+
+        for event in events:
+            for rule in sigma_rules:
+                match = rule.evaluate(event)
+                if match and match.rule_id not in seen_rule_ids:
+                    seen_rule_ids.add(match.rule_id)
+                    results.append(DetectionResult(
+                        rule_name=f"[Sigma] {match.rule_name}",
+                        rule_id=match.rule_id,
+                        triggered=True,
+                        severity=self._map_sigma_severity(match.severity),
+                        mitre_technique=match.mitre_technique,
+                        mitre_tactic=match.mitre_tactic,
+                        description=f"Sigma rule matched: {match.description}",
+                        confidence=0.8,  # slightly lower than hand-written rules
+                        reopen_window_hours=48,
+                    ))
+        return results
+
+    @staticmethod
+    def _map_sigma_severity(sigma_level: str):
+        from src.models.event_schema import Severity
+        return {
+            "critical": Severity.CRITICAL,
+            "high": Severity.HIGH,
+            "medium": Severity.MEDIUM,
+            "low": Severity.LOW,
+            "informational": Severity.INFO,
+        }.get(sigma_level.lower(), Severity.MEDIUM)
