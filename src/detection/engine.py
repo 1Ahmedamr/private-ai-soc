@@ -91,7 +91,7 @@ class DetectionEngine:
             relevant_rules = index.get_rules_for_source(event.source)
             for rule in relevant_rules:
                 match = rule.evaluate(event)
-                if match and match.rule_id not in seen_rule_ids:
+                if match and match.rule_id not in seen_rule_ids and match.severity not in ("low", "informational"):
                     seen_rule_ids.add(match.rule_id)
                     results.append(DetectionResult(
                         rule_name=f"[Sigma] {match.rule_name}",

@@ -226,11 +226,62 @@ def not_found(e):
     return render_template("404.html"), 404
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5001)
-
 @app.route("/analytics")
 @require_auth
 def analytics():
     stats = get_rule_stats()
     return render_template("analytics.html", stats=stats)
+
+@app.route("/enrich", methods=["POST"])
+@require_auth
+def enrich():
+    """
+    Opt-in VirusTotal enrichment endpoint.
+    The analyst explicitly submits an IOC for external lookup.
+    Privacy warning is shown in the UI before this is called.
+    """
+    data = request.get_json()
+    if not data or "ioc" not in data:
+        return jsonify({"error": "No IOC provided"}), 400
+
+    ioc = data["ioc"].strip()
+    ioc_type = data.get("type", "ip")
+
+    if not os.environ.get("VT_API_KEY"):
+        return jsonify({
+            "error": "VT_API_KEY not set. Set it as an environment variable to enable VirusTotal enrichment.",
+            "setup": "export VT_API_KEY=your_key_here"
+        }), 503
+
+    from src.enrichment.virustotal import enrich_ip, enrich_hash
+    try:
+        if ioc_type == "ip":
+            result = enrich_ip(ioc)
+        elif ioc_type in ("md5", "sha256", "hash"):
+            result = enrich_hash(ioc)
+        else:
+            return jsonify({"error": f"Unsupported IOC type: {ioc_type}"}), 400
+
+        if result is None:
+            return jsonify({"not_found": True, "ioc": ioc})
+
+        return jsonify({
+            "ioc": ioc,
+            "malicious": result.malicious_votes,
+            "suspicious": result.suspicious_votes,
+            "harmless": result.harmless_votes,
+            "total_engines": result.total_engines,
+            "community_score": result.community_score,
+            "threat_names": result.threat_names,
+            "permalink": result.permalink,
+            "verdict": (
+                "MALICIOUS" if result.malicious_votes >= 5
+                else "SUSPICIOUS" if result.malicious_votes >= 1 or result.suspicious_votes >= 3
+                else "CLEAN"
+            ),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5001)

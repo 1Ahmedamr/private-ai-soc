@@ -240,6 +240,130 @@ body.chat-open .dock{opacity:0;pointer-events:none;transform:translate(-50%,24px
 {% endfor %}
 
 <p class="note">All analysis performed locally. No data was sent to external services. Uploaded file deleted after analysis.</p>
+{% if result.incidents %}
+<style>
+.vt-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.vt-row input,.vt-row select{
+  padding:.7rem 1rem;border-radius:999px;border:1px solid var(--hairline);
+  background:rgba(250,246,238,.85);color:var(--ink);font:inherit;font-size:16px;
+}
+.vt-row input{flex:1;min-width:220px}
+.vt-row input:focus-visible,.vt-row select:focus-visible{border-color:var(--ink)}
+.vt-res{
+  margin-top:1rem;padding:16px 18px;border-radius:12px;border:1px solid var(--hairline);
+  border-left:5px solid var(--low);background:rgba(255,252,244,.7);line-height:1.7;
+  animation:rise .4s cubic-bezier(.22,1,.36,1) backwards;
+}
+.vt-res.crit{border-left-color:var(--crit)}
+.vt-res.med{border-left-color:var(--med)}
+.vt-res.low{border-left-color:var(--low)}
+.vt-res .verdict{font-family:var(--display);font-size:26px;margin-right:6px}
+.vt-res.crit .verdict{color:var(--crit)}
+.vt-res.med .verdict{color:var(--med)}
+.vt-res.low .verdict{color:var(--low)}
+</style>
+
+<div class="section vt">
+  <h3>VirusTotal enrichment <span class="badge">opt-in</span></h3>
+  <p class="alert warn" role="note">
+    <strong>Privacy notice:</strong> submitting an IOC to VirusTotal sends it to an external service.
+    Only use this when you have confirmed the need for external threat intelligence.
+    Requires the <code>VT_API_KEY</code> environment variable.
+  </p>
+  <div class="vt-row">
+    <input type="text" id="vt-ioc" placeholder="IP address or file hash…" aria-label="IP address or file hash">
+    <select id="vt-type" aria-label="IOC type">
+      <option value="ip">IP address</option>
+      <option value="sha256">SHA256 hash</option>
+      <option value="md5">MD5 hash</option>
+    </select>
+    <button class="btn" type="button" id="vt-btn" onclick="enrichIOC()">
+      <span class="spin" aria-hidden="true"></span><span id="vt-label">Enrich (sends to VT) →</span>
+    </button>
+  </div>
+  <div id="vt-result" aria-live="polite"></div>
+</div>
+
+<script>
+function vtEl(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function vtMsg(out, text, kind) {
+  var p = vtEl('p', kind === 'err' ? 'alert err' : 'note', text);
+  if (kind === 'err') p.setAttribute('role', 'alert');
+  out.appendChild(p);
+}
+function vtResult(out, d) {
+  var v = String(d.verdict || '').toUpperCase();
+  var tone = v === 'MALICIOUS' ? 'crit' : v === 'SUSPICIOUS' ? 'med' : 'low';
+  var box = vtEl('div', 'vt-res ' + tone);
+
+  var head = vtEl('div');
+  head.appendChild(vtEl('span', 'verdict', v || 'UNKNOWN'));
+  head.appendChild(document.createTextNode('— ' + (d.ioc || '')));
+  box.appendChild(head);
+
+  box.appendChild(vtEl('div', '',
+    'Malicious: ' + d.malicious + '/' + d.total_engines + ' engines | Suspicious: ' +
+    d.suspicious + ' | Harmless: ' + d.harmless));
+
+  var threats = d.threat_names || [];
+  if (threats.length) box.appendChild(vtEl('div', '', 'Threats: ' + threats.join(', ')));
+
+  box.appendChild(vtEl('div', '', 'Community score: ' + d.community_score));
+
+  if (typeof d.permalink === 'string' && d.permalink.indexOf('https://') === 0) {
+    var a = vtEl('a', '', 'View on VirusTotal →');
+    a.href = d.permalink; a.target = '_blank'; a.rel = 'noopener';
+    box.appendChild(a);
+  }
+  out.appendChild(box);
+}
+
+async function enrichIOC() {
+  var ioc = document.getElementById('vt-ioc').value.trim();
+  var type = document.getElementById('vt-type').value;
+  var out = document.getElementById('vt-result');
+  var btn = document.getElementById('vt-btn');
+  var label = document.getElementById('vt-label');
+  out.textContent = '';
+
+  if (!ioc) { vtMsg(out, 'Please enter an IOC.', 'err'); return; }
+
+  btn.disabled = true; btn.classList.add('loading'); label.textContent = 'Querying…';
+  vtMsg(out, 'Querying VirusTotal… (may take 15+ seconds due to rate limiting)', 'note');
+
+  try {
+    var response = await fetch('/enrich', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ioc: ioc, type: type})
+    });
+    var ctype = response.headers.get('content-type') || '';
+    if (ctype.indexOf('application/json') === -1) {
+      throw new Error('Server returned HTTP ' + response.status +
+        (response.status === 404
+          ? ' — the /enrich route was not found'
+          : ' instead of JSON — check the Flask terminal for the error'));
+    }
+    var data = await response.json();
+    out.textContent = '';
+    if (data.error) vtMsg(out, data.error, 'err');
+    else if (data.not_found) vtMsg(out, 'Not found in the VirusTotal database.', 'note');
+    else vtResult(out, data);
+  } catch (e) {
+    out.textContent = '';
+    vtMsg(out, 'Connection error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.classList.remove('loading'); label.textContent = 'Enrich (sends to VT) →';
+  }
+}
+</script>
+{% endif %}
+
 <div class="pad"></div>
 
 <!-- AI analyst: always-visible ask bar -->

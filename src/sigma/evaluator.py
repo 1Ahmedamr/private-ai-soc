@@ -146,6 +146,18 @@ class SigmaRule:
         if not selections:
             return None
 
+        # KEY FIX: prevent false positives from negation-only rules.
+        # Rules with ONLY filter_* blocks (no positive selection) match
+        # everything when their fields don't exist in our schema.
+        # Rules with positive selections that all return False cannot match.
+        positive_keys = [k for k in selections if not k.startswith("filter")]
+        if not positive_keys:
+            # Pure negation rule - needs fields we don't capture, skip safely
+            return None
+        if not any(selections[k] for k in positive_keys):
+            # Has positive selections but none matched - not a match
+            return None
+
         # Evaluate the condition expression
         # Supports: 'selection', 'all of selection*', '1 of filter*', NOT, AND, OR
         try:
