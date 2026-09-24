@@ -1,184 +1,379 @@
 {% extends "base.html" %}
 {% block title %}Analysis Results - Private AI SOC{% endblock %}
 {% block content %}
-<a href="/analyze" class="back">← Analyze another file</a>
-<h1>Analysis Results: {{ result.filename }}</h1>
 
-<div class="section">
-    <strong>Format detected:</strong> {{ result.format_detected }}<br>
-    <strong>Events parsed:</strong> {{ result.events_parsed }}<br>
-    <strong>Incidents found:</strong> {{ result.incidents|length }}
-    {% if result.parse_warning %}
-    <p style="color:#d29922; margin-top:0.5rem;">⚠️ {{ result.parse_warning }}</p>
-    {% endif %}
-</div>
+{# Most important first: sort by risk, highest on top #}
+{% set incs = result.incidents|sort(attribute='risk_score', reverse=true)|list %}
+{% set ns = namespace(crit=0, high=0, med=0, low=0, maxr=0) %}
+{% for i in incs %}
+  {% set s = i.severity|string|lower %}
+  {% if s == 'critical' %}{% set ns.crit = ns.crit + 1 %}
+  {% elif s == 'high' %}{% set ns.high = ns.high + 1 %}
+  {% elif s == 'medium' %}{% set ns.med = ns.med + 1 %}
+  {% else %}{% set ns.low = ns.low + 1 %}{% endif %}
+  {% if (i.risk_score or 0) > ns.maxr %}{% set ns.maxr = i.risk_score %}{% endif %}
+{% endfor %}
+{% if ns.crit %}{% set worst = 'critical' %}{% set headline = 'Critical threats found' %}
+{% elif ns.high %}{% set worst = 'high' %}{% set headline = 'High-severity findings' %}
+{% elif ns.med %}{% set worst = 'medium' %}{% set headline = 'Moderate findings' %}
+{% elif incs %}{% set worst = 'low' %}{% set headline = 'Low-severity findings' %}
+{% else %}{% set worst = 'low' %}{% set headline = 'No incidents detected' %}{% endif %}
+
+<style>
+[data-sev="critical"]{--c:var(--crit)}
+[data-sev="high"]{--c:var(--high)}
+[data-sev="medium"]{--c:var(--med)}
+[data-sev="low"],[data-sev="info"]{--c:var(--low)}
+
+.banner{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;
+  padding:26px 28px;border-radius:18px;color:#fff;margin-bottom:16px;
+  background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 68%,#000));
+  box-shadow:0 26px 50px -30px var(--c);
+}
+.banner h1{color:#fff;margin:0 0 6px}
+.banner p{margin:0;font-size:18px;opacity:.92}
+.banner .meta{margin-top:12px;font-size:15px;opacity:.9;display:flex;gap:6px 18px;flex-wrap:wrap}
+.banner .big{text-align:center;padding-left:22px;border-left:1px solid rgba(255,255,255,.35)}
+.banner .big b{display:block;font-family:var(--display);font-weight:400;font-size:78px;line-height:1}
+.banner .big span{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;opacity:.85}
+.banner .btn{background:#fff;color:var(--ink);margin-top:16px}
+@media (max-width:700px){.banner{grid-template-columns:1fr}.banner .big{border-left:0;padding-left:0;text-align:left;border-top:1px solid rgba(255,255,255,.35);padding-top:14px}}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.18);font-size:14px}
+.chip i{width:9px;height:9px;border-radius:50%;background:#fff;opacity:.9}
+
+.order ol{list-style:none;margin:0;padding:0}
+.order li a{
+  display:grid;grid-template-columns:34px 12px minmax(0,1fr) auto;gap:12px;align-items:center;
+  padding:11px 6px;border-bottom:1px solid var(--hairline);border-radius:8px;transition:background .2s,transform .2s;
+}
+.order li:last-child a{border-bottom:0}
+.order li a:hover{background:rgba(255,252,244,.6);transform:translateX(4px);text-decoration:none}
+.order .n{color:var(--ink-faint);font-size:14px}
+.order .d{width:11px;height:11px;border-radius:50%;background:var(--c)}
+.order .t{font-size:18px}
+.order .r{font-variant-numeric:tabular-nums;color:#fff;background:var(--c);border-radius:8px;padding:.1rem .55rem;font-size:15px}
+
+.inc{border:1px solid var(--hairline);border-left:6px solid var(--c);border-radius:16px;padding:0;overflow:hidden;margin-bottom:18px;scroll-margin-top:16px}
+.inc-head{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;padding:20px 24px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--c) 15%,transparent),transparent 70%);
+  border-bottom:1px solid var(--hairline);
+}
+.inc-head .rank{font-family:var(--display);font-size:34px;color:var(--c);line-height:1}
+.inc-head h2{margin:2px 0 4px;font-size:28px}
+.sevtag{display:inline-block;font-size:12px;letter-spacing:.16em;color:#fff;background:var(--c);border-radius:6px;padding:.12rem .55rem}
+.inc-head .m{font-size:15px;color:var(--ink-soft)}
+.score{text-align:center;min-width:92px}
+.score b{display:block;font-family:var(--display);font-weight:400;font-size:56px;line-height:1;color:var(--c)}
+.score span{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint)}
+.inc-body{padding:22px 24px}
+.inc-body h3{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint);font-family:var(--font);margin:1.2rem 0 .5rem}
+.inc-body h3:first-child{margin-top:0}
+.summary{font-size:20px;line-height:1.55;font-weight:300;margin:0}
+.stage{display:inline-block;margin-top:10px;padding:.2rem .8rem;border-radius:999px;border:1px solid var(--c);color:var(--c);font-size:15px}
+.actions{list-style:none;counter-reset:a;margin:0;padding:0}
+.actions li{counter-increment:a;display:grid;grid-template-columns:34px 1fr;gap:12px;padding:10px 12px;border-radius:12px;margin-bottom:6px;font-size:17px;background:rgba(255,252,244,.55)}
+.actions li::before{content:counter(a);width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:14px;background:var(--ink);color:var(--paper)}
+.actions li:first-child{background:color-mix(in srgb,var(--c) 14%,rgba(255,252,244,.7));border:1px solid color-mix(in srgb,var(--c) 45%,transparent);font-weight:600}
+.actions li:first-child::before{background:var(--c)}
+.actions li:first-child::after{content:"Do this first";grid-column:2;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--c);font-weight:400;margin-top:-4px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:15px;margin:0 0 4px}
+.facts b{font-weight:400;font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint);margin-right:6px}
+.evidence{margin-top:16px;border-top:1px solid var(--hairline);padding-top:12px}
+.evidence summary{cursor:pointer;font-size:16px;list-style:none;display:flex;align-items:center;gap:8px}
+.evidence summary::before{content:"▸";transition:transform .25s;display:inline-block}
+.evidence[open] summary::before{transform:rotate(90deg)}
+.evidence ul{margin:.8rem 0 0;padding-left:1.1rem}
+.evidence li{margin-bottom:.6rem}
+.ask{margin-top:16px}
+.ask-note{color:var(--ink-soft);font-style:italic;margin:0}
+
+.inc{animation:rise .6s cubic-bezier(.22,1,.36,1) backwards}
+.inc:nth-of-type(2){animation-delay:.1s}.inc:nth-of-type(3){animation-delay:.2s}.inc:nth-of-type(n+4){animation-delay:.3s}
+
+/* ---- AI analyst: dock + big panel ---- */
+.pad{height:120px}
+.dock{
+  position:fixed;left:calc(230px + (100vw - 230px)/2);bottom:20px;transform:translateX(-50%);z-index:60;
+  width:min(760px,calc(100vw - 280px));display:flex;gap:10px;align-items:center;padding:10px 10px 10px 20px;
+  background:rgba(250,246,238,.94);border:1px solid var(--ink-faint);border-radius:999px;
+  box-shadow:0 26px 60px -22px rgba(43,39,33,.65);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  transition:opacity .3s,transform .3s;animation:rise .7s .5s cubic-bezier(.22,1,.36,1) backwards;
+}
+.dock .ico{width:22px;height:22px;flex:none;stroke:var(--earth);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.dock input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:18px;color:var(--ink);padding:8px 0}
+.dock input::placeholder{color:var(--ink-soft)}
+.dock .btn{padding:.7rem 1.4rem;font-size:16px}
+.dock .open{background:transparent;border:1px solid var(--hairline);color:var(--ink);box-shadow:none;padding:.7rem 1rem}
+body.chat-open .dock{opacity:0;pointer-events:none;transform:translate(-50%,24px)}
+@media (max-width:900px){.dock{left:12px;right:12px;width:auto;transform:none}body.chat-open .dock{transform:translateY(24px)}.dock .open{display:none}}
+
+.scrim{position:fixed;inset:0;background:rgba(43,39,33,.38);opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s .35s;z-index:80;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.scrim.open{opacity:1;visibility:visible;transition:opacity .35s}
+.panel{
+  position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);z-index:90;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#f6f2e8,#ece7dc);border-left:1px solid var(--hairline);
+  box-shadow:-30px 0 70px -30px rgba(43,39,33,.6);
+  transform:translateX(102%);visibility:hidden;transition:transform .45s cubic-bezier(.22,1,.36,1),visibility 0s .45s;
+}
+.panel.open{transform:none;visibility:visible;transition:transform .45s cubic-bezier(.22,1,.36,1)}
+.panel-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--hairline)}
+.panel-head h2{margin:0;font-size:28px}
+.panel-head p{margin:2px 0 0;font-size:14px;color:var(--ink-soft)}
+.x{border:1px solid var(--hairline);background:rgba(255,252,244,.7);border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer;color:var(--ink);transition:transform .2s}
+.x:hover{transform:rotate(90deg)}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;padding:14px 24px 0}
+.suggest button{border:1px solid var(--hairline);background:rgba(255,252,244,.7);border-radius:999px;padding:.4rem .9rem;font:inherit;font-size:15px;cursor:pointer;color:var(--ink);transition:background .2s,transform .2s}
+.suggest button:hover{background:#fff;transform:translateY(-1px)}
+.panel .chat-history{flex:1;max-height:none;margin:14px 24px;font-size:17px}
+.panel .chat-row{padding:0 24px}
+.panel .chat-row input{font-size:17px;padding:.85rem 1.1rem}
+.panel .status{padding:0 24px 18px}
+.msg{animation:rise .35s cubic-bezier(.22,1,.36,1) backwards}
+.typing span{display:inline-block;width:7px;height:7px;margin-right:4px;border-radius:50%;background:var(--earth);animation:dots 1s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@media (max-width:640px){.inc-head{grid-template-columns:1fr}.inc-head .rank{display:none}}
+</style>
+
+<a href="/analyze" class="back">← Analyze another file</a>
 
 {% if result.errors %}
-<div class="section" style="border-color:#f85149;">
-    {% for error in result.errors %}
-    <p style="color:#f85149;">⚠️ {{ error }}</p>
+<div class="section">
+  {% for error in result.errors %}<p class="alert err" role="alert">{{ error }}</p>{% endfor %}
+</div>
+{% endif %}
+{% if result.parse_warning %}
+<p class="alert warn" role="status">{{ result.parse_warning }}</p>
+{% endif %}
+
+<section class="banner" data-sev="{{ worst }}">
+  <div>
+    <h1>{{ headline }}</h1>
+    <p>{% if incs %}{{ incs|length }} incident{{ '' if incs|length == 1 else 's' }} found — start with #1 below.{% else %}The file did not match any known threat patterns.{% endif %}</p>
+    <div class="meta">
+      <span>File: <strong>{{ result.filename }}</strong></span>
+      <span>Format: <strong>{{ result.format_detected }}</strong></span>
+      <span>Events parsed: <strong>{{ result.events_parsed }}</strong></span>
+    </div>
+    {% if incs %}
+    <div class="chips">
+      {% if ns.crit %}<span class="chip"><i></i>{{ ns.crit }} critical</span>{% endif %}
+      {% if ns.high %}<span class="chip"><i></i>{{ ns.high }} high</span>{% endif %}
+      {% if ns.med %}<span class="chip"><i></i>{{ ns.med }} medium</span>{% endif %}
+      {% if ns.low %}<span class="chip"><i></i>{{ ns.low }} low / info</span>{% endif %}
+    </div>
+    {% endif %}
+    <button class="btn" type="button" onclick="ask('What should I do first?')">Ask the AI what to do first →</button>
+  </div>
+  {% if incs %}
+  <div class="big"><b data-count>{{ ns.maxr|round|int }}</b><span>highest risk / 100</span></div>
+  {% endif %}
+</section>
+
+{% if incs|length > 1 %}
+<div class="section order">
+  <h3>Priority order</h3>
+  <ol>
+    {% for incident in incs %}
+    <li data-sev="{{ incident.severity|string|lower }}">
+      <a href="#inc-{{ loop.index }}">
+        <span class="n">#{{ loop.index }}</span><span class="d"></span>
+        <span class="t">{{ incident.title }}</span><span class="r">{{ incident.risk_score }}</span>
+      </a>
+    </li>
     {% endfor %}
+  </ol>
 </div>
 {% endif %}
 
-{% if not result.incidents %}
+{% if not incs %}
 <div class="section">
-    <p>✅ No incidents detected.</p>
-    <p style="color:#8b949e; font-size:0.9rem;">
-        The log file did not match any known threat patterns.
-        You can still ask questions below about the parsed events.
-    </p>
+  <p><strong>No incidents detected.</strong></p>
+  <p class="note">You can still ask the AI analyst questions about the parsed events.</p>
 </div>
-{% else %}
-{% for incident in result.incidents %}
-<div class="section" style="border-left: 4px solid {{ '#f85149' if incident.severity in ('high','critical') else '#d29922' }};">
-    <h2 style="margin-top:0;">
-        <span class="sev-{{ incident.severity }}">{{ incident.severity|upper }}</span>
-        — {{ incident.title }}
-    </h2>
-    <table style="width:auto; margin-bottom:1rem;">
-        <tr><td style="color:#8b949e; padding-right:1rem;">Risk Score</td><td>{{ incident.risk_score }}/100</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">Priority</td><td>{{ incident.priority.replace('IncidentPriority.', '') }}</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">MITRE</td>
-            <td>{% for t in incident.mitre_techniques %}
-                <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/"
-                   target="_blank" class="badge">{{ t }}</a>
-                {% endfor %}</td></tr>
-        <tr><td style="color:#8b949e; padding-right:1rem;">Source (Scanner)</td><td>{{ incident.correlation_key }}</td></tr>
-    </table>
+{% endif %}
 
-    {% if result.ai_summaries.get(incident.incident_id) %}
-    {% set verdict = result.ai_summaries[incident.incident_id] %}
-    <h3>What Happened</h3>
-    <p>{{ verdict.summary }}</p>
-    <h3>Attack Stage</h3>
-    <p>{{ verdict.likely_attack_stage }}</p>
-    <h3>Recommended Actions</h3>
-    <ol>{% for a in verdict.recommended_actions %}<li>{{ a }}</li>{% endfor %}</ol>
+{% for incident in incs %}
+{% set verdict = result.ai_summaries.get(incident.incident_id) %}
+<article class="section inc" id="inc-{{ loop.index }}" data-sev="{{ incident.severity|string|lower }}">
+  <header class="inc-head">
+    <div class="rank">#{{ loop.index }}</div>
+    <div>
+      <span class="sevtag">{{ incident.severity|string|upper }}</span>
+      <h2>{{ incident.title }}</h2>
+      <div class="m">Priority {{ incident.priority|string|replace('IncidentPriority.', '') }} · Source {{ incident.correlation_key }}</div>
+    </div>
+    <div class="score"><b data-count>{{ incident.risk_score|round|int }}</b><span>risk / 100</span></div>
+  </header>
+
+  <div class="inc-body">
+    {% if verdict %}
+      <h3>What happened</h3>
+      <p class="summary">{{ verdict.summary }}</p>
+      <span class="stage">Attack stage: {{ verdict.likely_attack_stage }}</span>
+      <h3>Recommended actions</h3>
+      <ol class="actions">{% for a in verdict.recommended_actions %}<li>{{ a }}</li>{% endfor %}</ol>
     {% else %}
-    <p style="color:#8b949e;">AI investigation unavailable — incident detected by deterministic rules.</p>
+      <p class="ask-note">AI investigation unavailable — this incident was detected by deterministic rules.</p>
     {% endif %}
 
-    <h3>Detection Evidence</h3>
-    <ul>
-    {% for d in incident.detections %}
-        <li><strong>{{ d.rule_name }}</strong> (confidence={{ d.confidence }})<br>
-        <small>{{ d.description }}</small></li>
-    {% endfor %}
-    </ul>
-</div>
+    <h3>MITRE ATT&amp;CK</h3>
+    <div class="facts">
+      <span>{% for t in incident.mitre_techniques %}<a class="badge" href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/" target="_blank" rel="noopener">{{ t }}</a>{% else %}<span class="note">None mapped</span>{% endfor %}</span>
+    </div>
+
+    <details class="evidence" {{ 'open' if loop.first }}>
+      <summary>Detection evidence ({{ incident.detections|length }})</summary>
+      <ul>
+        {% for d in incident.detections %}
+        <li><strong>{{ d.rule_name }}</strong> <span class="note">(confidence {{ d.confidence }})</span><br><small class="note">{{ d.description }}</small></li>
+        {% endfor %}
+      </ul>
+    </details>
+
+    <button class="btn ask" type="button" data-id="{{ incident.incident_id }}" data-title="{{ incident.title }}" onclick="askAbout(this)">Ask the AI about this incident →</button>
+  </div>
+</article>
 {% endfor %}
-{% endif %}
 
-<!-- CHAT INTERFACE -->
-<div class="section" id="chat-section" style="margin-top:2rem;">
-    <h2 style="margin-top:0;">💬 Ask the AI Analyst</h2>
-    <p style="color:#8b949e; font-size:0.9rem;">
-        Ask follow-up questions about this specific file and its incidents.
-        All answers are based on the analysis above — no raw log content
-        is sent to the AI, and all processing stays local.
-    </p>
+<p class="note">All analysis performed locally. No data was sent to external services. Uploaded file deleted after analysis.</p>
+<div class="pad"></div>
 
-    <div id="chat-history" style="
-        min-height:100px; max-height:400px; overflow-y:auto;
-        background:#0d1117; border:1px solid #30363d; border-radius:6px;
-        padding:1rem; margin-bottom:1rem; font-size:0.9rem;">
-        <p style="color:#8b949e; font-style:italic;">
-            Ask anything about this file — "What should I do first?",
-            "Is this a real attack?", "What's the most dangerous finding?"
-        </p>
-    </div>
-
-    <div style="display:flex; gap:0.5rem;">
-        <input type="text" id="chat-input" placeholder="Ask a question about this analysis..."
-               style="flex:1; background:#161b22; border:1px solid #30363d; color:#c9d1d9;
-                      padding:0.6rem; border-radius:6px; font-size:0.9rem;"
-               onkeydown="if(event.key==='Enter') sendQuestion()">
-        <button onclick="sendQuestion()" id="send-btn"
-                style="background:#238636; color:white; border:none; padding:0.6rem 1.2rem;
-                       border-radius:6px; cursor:pointer; white-space:nowrap;">
-            Send →
-        </button>
-    </div>
-
-    <div id="chat-status" style="color:#8b949e; font-size:0.8rem; margin-top:0.4rem; min-height:1.2rem;"></div>
+<!-- AI analyst: always-visible ask bar -->
+<div class="dock" id="dock">
+  <svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z"/></svg>
+  <input id="dock-input" type="text" placeholder="Ask the AI analyst about this file…" aria-label="Ask the AI analyst"
+         onkeydown="if(event.key==='Enter') dockSend()">
+  <button class="btn open" type="button" onclick="openChat()">Open chat</button>
+  <button class="btn" type="button" onclick="dockSend()">Ask →</button>
 </div>
 
-<div style="margin-top:1rem; color:#8b949e; font-size:0.85rem;">
-    All analysis performed locally. No data was sent to external services.
-    Uploaded file deleted after analysis.
-</div>
+<!-- AI analyst: large panel -->
+<div class="scrim" id="scrim" onclick="closeChat()"></div>
+<aside class="panel" id="chat-panel" role="dialog" aria-label="AI analyst chat" aria-hidden="true">
+  <div class="panel-head">
+    <div><h2>Ask the AI analyst</h2><p>Answers use the analysis above. All processing stays local.</p></div>
+    <button class="x" type="button" onclick="closeChat()" aria-label="Close chat">×</button>
+  </div>
+  <div class="suggest">
+    <button type="button" onclick="ask('What should I do first?')">What should I do first?</button>
+    <button type="button" onclick="ask('Is this a real attack?')">Is this a real attack?</button>
+    <button type="button" onclick="ask('What is the most dangerous finding?')">Most dangerous finding?</button>
+  </div>
+  <div class="chat-history" id="chat-history" aria-live="polite">
+    <p class="note" style="font-style:italic;margin:0">Ask anything about this file, or pick a suggestion above.</p>
+  </div>
+  <div class="chat-row">
+    <input type="text" id="chat-input" placeholder="Ask a question about this analysis…" aria-label="Question for the AI analyst"
+           onkeydown="if(event.key==='Enter') sendQuestion()">
+    <button class="btn" onclick="sendQuestion()" id="send-btn">Send →</button>
+  </div>
+  <div class="status" id="chat-status"></div>
+</aside>
 
 <script>
+var panel = document.getElementById('chat-panel');
+var scrim = document.getElementById('scrim');
+
+function openChat() {
+  panel.classList.add('open'); scrim.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('chat-open');
+  setTimeout(function () { document.getElementById('chat-input').focus(); }, 300);
+}
+function closeChat() {
+  panel.classList.remove('open'); scrim.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('chat-open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeChat(); });
+
+function ask(text) { openChat(); send(text); }
+function askAbout(btn) {
+  ask('About ' + btn.dataset.id + ' (' + btn.dataset.title + '): what happened, how serious is it, and what should I do first?');
+}
+function dockSend() {
+  var d = document.getElementById('dock-input');
+  var q = d.value.trim();
+  if (!q) { openChat(); return; }
+  d.value = '';
+  ask(q);
+}
+
 function appendMessage(role, text) {
-    const history = document.getElementById('chat-history');
-    const msg = document.createElement('div');
-    msg.style.cssText = 'margin-bottom:1rem; padding:0.6rem; border-radius:4px;';
+  var history = document.getElementById('chat-history');
+  var msg = document.createElement('div');
+  msg.className = 'msg ' + (role === 'analyst' ? 'you' : 'ai');
+  var who = document.createElement('b');
+  who.textContent = role === 'analyst' ? 'You: ' : 'AI Analyst: ';
+  msg.appendChild(who);
+  String(text).split('\n').forEach(function (line, i) {
+    if (i) msg.appendChild(document.createElement('br'));
+    msg.appendChild(document.createTextNode(line));
+  });
+  history.appendChild(msg);
+  history.scrollTop = history.scrollHeight;
+  return msg;
+}
 
-    if (role === 'analyst') {
-        msg.style.background = '#161b22';
-        msg.style.borderLeft = '3px solid #58a6ff';
-        msg.innerHTML = '<strong style="color:#58a6ff;">You:</strong> ' + escapeHtml(text);
+function sendQuestion() {
+  var input = document.getElementById('chat-input');
+  var q = input.value;
+  input.value = '';
+  send(q);
+}
+
+async function send(question) {
+  var input = document.getElementById('chat-input');
+  var status = document.getElementById('chat-status');
+  var btn = document.getElementById('send-btn');
+  question = (question || '').trim();
+  if (!question) return;
+
+  var history = document.getElementById('chat-history');
+  var placeholder = history.querySelector('p');
+  if (placeholder) placeholder.remove();
+
+  appendMessage('analyst', question);
+  btn.disabled = true;
+  btn.textContent = 'Thinking…';
+  status.className = 'status';
+  status.textContent = 'AI is analyzing your question locally…';
+
+  var typing = document.createElement('div');
+  typing.className = 'msg ai typing';
+  typing.innerHTML = '<span></span><span></span><span></span>';
+  history.appendChild(typing);
+  history.scrollTop = history.scrollHeight;
+
+  try {
+    var response = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: question})
+    });
+    var data = await response.json();
+    typing.remove();
+    if (data.error) {
+      status.className = 'status err';
+      status.textContent = data.error;
     } else {
-        msg.style.background = '#0d1117';
-        msg.style.borderLeft = '3px solid #3fb950';
-        msg.innerHTML = '<strong style="color:#3fb950;">AI Analyst:</strong> ' + escapeHtml(text).replace(/\n/g, '<br>');
+      appendMessage('ai', data.answer);
+      status.className = 'status ok';
+      status.textContent = 'Turn ' + data.turn + ' — all processing local';
     }
+  } catch (e) {
+    typing.remove();
+    status.className = 'status err';
+    status.textContent = 'Connection error: ' + e.message;
+  }
 
-    history.appendChild(msg);
-    history.scrollTop = history.scrollHeight;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.appendChild(document.createTextNode(text));
-    return div.innerHTML;
-}
-
-async function sendQuestion() {
-    const input = document.getElementById('chat-input');
-    const status = document.getElementById('chat-status');
-    const btn = document.getElementById('send-btn');
-    const question = input.value.trim();
-
-    if (!question) return;
-
-    // Clear placeholder text on first message
-    const history = document.getElementById('chat-history');
-    const placeholder = history.querySelector('p');
-    if (placeholder) placeholder.remove();
-
-    appendMessage('analyst', question);
-    input.value = '';
-    btn.disabled = true;
-    btn.textContent = 'Thinking...';
-    status.textContent = 'AI is analyzing your question locally...';
-
-    try {
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({question: question})
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            status.textContent = '⚠️ ' + data.error;
-            status.style.color = '#f85149';
-        } else {
-            appendMessage('ai', data.answer);
-            status.textContent = 'Turn ' + data.turn + ' — all processing local';
-            status.style.color = '#3fb950';
-        }
-    } catch (e) {
-        status.textContent = '⚠️ Connection error: ' + e.message;
-        status.style.color = '#f85149';
-    }
-
-    btn.disabled = false;
-    btn.textContent = 'Send →';
-    input.focus();
+  btn.disabled = false;
+  btn.textContent = 'Send →';
+  input.focus();
 }
 </script>
 {% endblock %}

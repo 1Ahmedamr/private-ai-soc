@@ -2,51 +2,65 @@
 {% block title %}{{ incident.incident_id }} - Private AI SOC{% endblock %}
 {% block content %}
 <a href="/" class="back">← Back to queue</a>
-<h1>{{ incident.title }}</h1>
-<div class="section">
-    <strong>{{ incident.incident_id }}</strong><br>
-    Status: {{ incident.status }} | Priority: {{ incident.priority }} |
-    <span class="sev-{{ incident.severity }}">Severity: {{ incident.severity }}</span> |
-    Risk: {{ incident.risk_score }}/100
+<div class="page-head">
+  <h1>{{ incident.title }}</h1>
+  <p>{{ incident.incident_id }}</p>
 </div>
 
 <div class="section">
-    <strong>Correlation Key:</strong> {{ incident.correlation_key }}<br>
-    <strong>MITRE:</strong> {% for t in incident.mitre_techniques %}<span class="badge">{{ t }}</span>{% endfor %}<br>
-    <strong>First Seen:</strong> {{ incident.first_seen }} | <strong>Last Seen:</strong> {{ incident.last_seen }}<br>
-    <strong>Events Attached:</strong> {{ incident.events|length }}
+  <dl class="kv">
+    <dt>Status</dt><dd>{{ incident.status }}</dd>
+    <dt>Priority</dt><dd>{{ incident.priority|string|replace('IncidentPriority.', '') }}</dd>
+    <dt>Severity</dt><dd class="sev-{{ incident.severity }}">{{ incident.severity }}</dd>
+    <dt>Risk</dt><dd>{{ incident.risk_score }} / 100</dd>
+  </dl>
 </div>
 
 <div class="section">
-    <h3>Detections</h3>
-    <ul>
+  <dl class="kv">
+    <dt>Correlation key</dt><dd>{{ incident.correlation_key }}</dd>
+    <dt>MITRE</dt><dd>{% for t in incident.mitre_techniques %}<span class="badge">{{ t }}</span>{% endfor %}</dd>
+    <dt>First seen</dt><dd>{{ incident.first_seen }}</dd>
+    <dt>Last seen</dt><dd>{{ incident.last_seen }}</dd>
+    <dt>Events attached</dt><dd>{{ incident.events|length }}</dd>
+  </dl>
+</div>
+
+<div class="section">
+  <h3>Detections</h3>
+  {% if incident.detections %}
+  <ul>
     {% for d in incident.detections %}
-        <li><strong>{{ d.rule_name }}</strong>: {{ d.description }} (confidence={{ d.confidence }})</li>
+    <li><strong>{{ d.rule_name }}</strong>: {{ d.description }} <span class="note">(confidence {{ d.confidence }})</span></li>
     {% endfor %}
-    </ul>
+  </ul>
+  {% else %}<p class="note">No detections recorded.</p>{% endif %}
 </div>
 
 <div class="section">
-    <h3>AI Investigation</h3>
-    {% if incident.ai_verdict %}
-        <p>{{ incident.ai_verdict }}</p>
-        <strong>Recommended Actions:</strong>
-        <ul>{% for a in incident.recommended_actions %}<li>{{ a }}</li>{% endfor %}</ul>
-    {% else %}
-        <p>Not yet investigated.</p>
-    {% endif %}
+  <h3>AI investigation</h3>
+  {% if incident.ai_verdict %}
+  <div class="ai-block">
+    <p>{{ incident.ai_verdict }}</p>
+    <strong>Recommended actions</strong>
+    <ul>{% for a in incident.recommended_actions %}<li>{{ a }}</li>{% endfor %}</ul>
+  </div>
+  {% else %}
+  <p class="note">Not yet investigated.</p>
+  {% endif %}
 </div>
+
 <div class="section">
-    <h3>Timeline</h3>
-    <ul style="list-style:none; padding-left:0;">
+  <h3>Timeline</h3>
+  {% if timeline %}
+  <ul class="timeline">
     {% for entry in timeline %}
-        <li style="padding:0.4rem 0; border-left:2px solid {{ '#f85149' if entry.type == 'detection' else '#30363d' }}; padding-left:0.8rem; margin-bottom:0.3rem;">
-            <strong>{{ entry.timestamp }}</strong> —
-            <span class="badge">{{ entry.type }}</span>
-            {{ entry.label }}<br>
-            <small>{{ entry.detail }}</small>
-        </li>
+    <li class="{{ 'det' if entry.type == 'detection' else '' }}">
+      <strong>{{ entry.timestamp }}</strong> — <span class="badge">{{ entry.type }}</span> {{ entry.label }}<br>
+      <small>{{ entry.detail }}</small>
+    </li>
     {% endfor %}
-    </ul>
+  </ul>
+  {% else %}<p class="note">No timeline entries.</p>{% endif %}
 </div>
 {% endblock %}

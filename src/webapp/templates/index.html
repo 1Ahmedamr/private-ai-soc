@@ -1,26 +1,223 @@
 {% extends "base.html" %}
-{% block title %}Incidents - Private AI SOC{% endblock %}
+{% block title %}Dashboard - Private AI SOC{% endblock %}
 {% block content %}
-<h1>🛡️ Private AI SOC — Incident Queue</h1>
-<a href="/analyze" style="float:right; background:#21262d; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.9rem;">🔍 Analyze a log file</a>
-<p>{{ incidents|length }} open incident(s) shown, {{ total }} total in store.</p>
 
-{% if not incidents %}
-<div class="section">No open incidents. Queue is clear.</div>
-{% else %}
-<table>
-    <tr><th>ID</th><th>Risk</th><th>Severity</th><th>Priority</th><th>MITRE</th><th>Title</th><th>AI Verdict</th></tr>
-    {% for inc in incidents %}
-    <tr>
+{# ---- everything below is computed from `incidents` and `total` only ---- #}
+{% macro risk_cls(n) %}{{ 'r-crit' if n >= 80 else 'r-high' if n >= 60 else 'r-med' if n >= 40 else 'r-low' }}{% endmacro %}
+{% set ns = namespace(crit=0, high=0, med=0, low=0, ai=0, maxr=0, mitre={}) %}
+{% for inc in incidents %}
+  {% set sev = (inc.severity|string|lower) %}
+  {% if sev == 'critical' %}{% set ns.crit = ns.crit + 1 %}
+  {% elif sev == 'high' %}{% set ns.high = ns.high + 1 %}
+  {% elif sev == 'medium' %}{% set ns.med = ns.med + 1 %}
+  {% else %}{% set ns.low = ns.low + 1 %}{% endif %}
+  {% if inc.ai_verdict %}{% set ns.ai = ns.ai + 1 %}{% endif %}
+  {% if (inc.risk_score or 0) > ns.maxr %}{% set ns.maxr = inc.risk_score %}{% endif %}
+  {% for t in inc.mitre_techniques %}
+    {% set _ = ns.mitre.update({t: ns.mitre.get(t, 0) + 1}) %}
+  {% endfor %}
+{% endfor %}
+{% set n_open = incidents|length %}
+{% set circ = 339.29 %}
+{% set by_risk = incidents|sort(attribute='risk_score', reverse=true)|list %}
+{% set top_mitre = ns.mitre.items()|sort(attribute='1', reverse=true)|list %}
+{% set ai_inc = (incidents|selectattr('ai_verdict')|list)|first %}
+
+<style>
+.dash-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.dash-head p{margin:0;color:var(--ink-soft);font-size:18px;font-weight:300}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.search{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;min-width:260px;border-radius:999px;
+  border:1px solid var(--hairline);background:rgba(250,246,238,.7);
+}
+.search svg{width:15px;height:15px;stroke:var(--ink-faint);fill:none;stroke-width:1.6;stroke-linecap:round}
+.search input{border:0;outline:0;background:transparent;font:inherit;font-size:15px;color:var(--ink);width:100%}
+.search input::placeholder{color:var(--ink-faint)}
+.clock{font-size:12px;letter-spacing:.14em;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+
+.grid{display:grid;gap:16px;grid-template-columns:repeat(12,minmax(0,1fr));margin-bottom:16px}
+.grid > .card{margin:0}
+.c-stat{grid-column:span 2}
+.c-risk{grid-column:span 4}
+.c-4{grid-column:span 4}.c-6{grid-column:span 6}.c-8{grid-column:span 8}.c-12{grid-column:span 12}
+@media (max-width:1180px){.c-stat{grid-column:span 3}.c-risk{grid-column:span 12}.c-4,.c-6,.c-8{grid-column:span 12}}
+@media (max-width:640px){.c-stat{grid-column:span 6}}
+
+.stat .k{font-size:11px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint)}
+.stat .v{font-family:var(--display);font-size:46px;line-height:1.05;margin:6px 0 2px}
+.stat .s{font-size:13px;color:var(--ink-soft)}
+.card-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.card-title h3{margin:0}
+.card-title a{font-size:13px;color:var(--ink-soft)}
+
+.risk-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.gauge{position:relative;width:132px;height:132px;flex:none}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge .mid{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.gauge .mid b{font-family:var(--display);font-weight:400;font-size:38px;line-height:1}
+.gauge .mid span{font-size:11px;color:var(--ink-faint);letter-spacing:.14em}
+.legend{flex:1;min-width:140px;display:grid;gap:8px;font-size:15px}
+.legend div{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:9px}
+.bar{display:flex;height:9px;border-radius:99px;overflow:hidden;background:rgba(43,39,33,.08);margin-top:16px}
+.bar span{display:block;height:100%}
+
+.risk{display:inline-block;min-width:38px;text-align:center;padding:.12rem .5rem;border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums;color:#fff}
+.r-crit{background:var(--crit)}.r-high{background:var(--high)}.r-med{background:var(--med)}.r-low{background:var(--low)}
+
+.alerts{list-style:none;margin:0;padding:0}
+.alerts li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--hairline)}
+.alerts li:last-child{border-bottom:0}
+.alerts .dotc{width:10px;height:10px;border-radius:50%;margin-top:7px}
+.alerts .t{font-size:17px;line-height:1.25}
+.alerts .m{font-size:13px;color:var(--ink-soft);margin-top:2px}
+.tag{font-size:11px;letter-spacing:.08em;color:var(--ink-soft);border:1px solid var(--hairline);border-radius:6px;padding:.1rem .45rem;align-self:start;background:rgba(255,252,244,.6)}
+
+.mitre-row{display:grid;grid-template-columns:70px minmax(0,1fr) 30px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hairline)}
+.mitre-row:last-child{border-bottom:0}
+.mitre-row .track{height:6px;border-radius:99px;background:rgba(43,39,33,.08);overflow:hidden}
+.mitre-row .track span{display:block;height:100%;background:var(--earth)}
+.mitre-row .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+
+.ai{border-left:3px solid var(--earth);padding-left:14px}
+.ai p{font-size:17px;line-height:1.55;margin:.4rem 0 1rem;font-weight:300}
+.empty{color:var(--ink-soft);font-style:italic;padding:8px 0}
+.table-wrap{overflow-x:auto}
+tr.hide{display:none}
+</style>
+
+<div class="dash-head">
+  <div>
+    <h1>SOC Dashboard</h1>
+    <p>Threat detection, investigation and response — kept close and quiet.</p>
+  </div>
+  <div class="tools">
+    <label class="search">
+      <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>
+      <input id="q" type="search" placeholder="Filter incidents by ID, title, technique…" autocomplete="off">
+    </label>
+    <span class="clock" id="clock"></span>
+    <a class="btn" href="/analyze">Analyze a log file →</a>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card stat c-stat"><div class="k">Open incidents</div><div class="v">{{ n_open }}</div><div class="s">shown in queue</div></div>
+  <div class="card stat c-stat"><div class="k">AI investigated</div><div class="v">{{ ns.ai }}</div><div class="s">of {{ n_open }} open</div></div>
+  <div class="card stat c-stat"><div class="k">Total in store</div><div class="v">{{ total }}</div><div class="s">all incidents</div></div>
+  <div class="card stat c-stat"><div class="k">Critical + high</div><div class="v">{{ ns.crit + ns.high }}</div><div class="s">needs attention first</div></div>
+
+  <div class="card c-risk">
+    <div class="card-title"><h3>Highest open risk</h3></div>
+    <div class="risk-wrap">
+      <div class="gauge">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(43,39,33,.10)" stroke-width="9"/>
+          <circle cx="60" cy="60" r="54" fill="none" stroke-linecap="round" stroke-width="9"
+                  class="gauge-arc {{ risk_cls(ns.maxr)|trim }}"
+                  stroke-dasharray="{{ (circ * ns.maxr / 100)|round(1) }} {{ circ }}"
+                  style="stroke:{{ 'var(--crit)' if ns.maxr >= 80 else 'var(--high)' if ns.maxr >= 60 else 'var(--med)' if ns.maxr >= 40 else 'var(--low)' }}"/>
+        </svg>
+        <div class="mid"><b>{{ ns.maxr|round|int }}</b><span>/ 100</span></div>
+      </div>
+      <div class="legend">
+        <div><span><i style="background:var(--crit)"></i>Critical</span><b>{{ ns.crit }}</b></div>
+        <div><span><i style="background:var(--high)"></i>High</span><b>{{ ns.high }}</b></div>
+        <div><span><i style="background:var(--med)"></i>Medium</span><b>{{ ns.med }}</b></div>
+        <div><span><i style="background:var(--low)"></i>Low / info</span><b>{{ ns.low }}</b></div>
+      </div>
+    </div>
+    {% if n_open %}
+    <div class="bar" title="Severity mix of open incidents">
+      <span style="width:{{ (ns.crit * 100 / n_open)|round(1) }}%;background:var(--crit)"></span>
+      <span style="width:{{ (ns.high * 100 / n_open)|round(1) }}%;background:var(--high)"></span>
+      <span style="width:{{ (ns.med * 100 / n_open)|round(1) }}%;background:var(--med)"></span>
+      <span style="width:{{ (ns.low * 100 / n_open)|round(1) }}%;background:var(--low)"></span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card c-4">
+    <div class="card-title"><h3>Top MITRE ATT&amp;CK techniques</h3></div>
+    {% if top_mitre %}
+      {% set peak = top_mitre[0][1] %}
+      {% for t, c in top_mitre[:5] %}
+      <div class="mitre-row">
+        <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/" target="_blank" rel="noopener"><span class="badge" style="margin:0">{{ t }}</span></a>
+        <div class="track"><span style="width:{{ (c * 100 / peak)|round(1) }}%"></span></div>
+        <div class="n">{{ c }}</div>
+      </div>
+      {% endfor %}
+    {% else %}<div class="empty">No techniques mapped yet.</div>{% endif %}
+  </div>
+
+  <div class="card c-4">
+    <div class="card-title"><h3>AI investigation</h3></div>
+    {% if ai_inc %}
+      <div class="ai">
+        <span class="tag">{{ ai_inc.incident_id }}</span>
+        <p>{{ ai_inc.ai_verdict|string|truncate(240) }}</p>
+        <a class="btn ghost" href="/incident/{{ ai_inc.incident_id }}">View full analysis</a>
+      </div>
+    {% else %}<div class="empty">No incident has been investigated by the AI yet.</div>{% endif %}
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card c-8" id="queue">
+    <div class="card-title"><h3>Incident queue</h3><span class="caps">{{ n_open }} open · {{ total }} total</span></div>
+    {% if not incidents %}
+      <div class="empty">No open incidents. The queue is clear.</div>
+    {% else %}
+    <div class="table-wrap">
+    <table id="tbl">
+      <thead><tr><th>ID</th><th>Title</th><th>Risk</th><th>Severity</th><th>Priority</th><th>MITRE</th><th>AI</th></tr></thead>
+      <tbody>
+      {% for inc in incidents %}
+      <tr>
         <td><a href="/incident/{{ inc.incident_id }}">{{ inc.incident_id }}</a></td>
-        <td>{{ inc.risk_score }}</td>
-        <td class="sev-{{ inc.severity }}">{{ inc.severity }}</td>
-        <td>{{ inc.priority }}</td>
-        <td>{% for t in inc.mitre_techniques %}<span class="badge">{{ t }}</span>{% endfor %}</td>
         <td>{{ inc.title }}</td>
+        <td><span class="risk {{ risk_cls(inc.risk_score or 0)|trim }}">{{ inc.risk_score }}</span></td>
+        <td class="sev-{{ inc.severity }}">{{ inc.severity }}</td>
+        <td>{{ inc.priority|string|replace('IncidentPriority.', '') }}</td>
+        <td>{% for t in inc.mitre_techniques %}<span class="badge">{{ t }}</span>{% endfor %}</td>
         <td>{{ "Investigated" if inc.ai_verdict else "—" }}</td>
-    </tr>
-    {% endfor %}
-</table>
-{% endif %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card c-4">
+    <div class="card-title"><h3>Highest-risk alerts</h3></div>
+    {% if by_risk %}
+    <ul class="alerts">
+      {% for inc in by_risk[:5] %}
+      <li>
+        <span class="dotc" style="background:{{ 'var(--crit)' if (inc.risk_score or 0) >= 80 else 'var(--high)' if (inc.risk_score or 0) >= 60 else 'var(--med)' if (inc.risk_score or 0) >= 40 else 'var(--low)' }}"></span>
+        <div><div class="t"><a href="/incident/{{ inc.incident_id }}">{{ inc.title }}</a></div>
+             <div class="m">risk {{ inc.risk_score }} · {{ inc.severity }}</div></div>
+        <span class="tag">{{ inc.incident_id }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty">Nothing to show.</div>{% endif %}
+  </div>
+</div>
+
+<script>
+(function(){
+  var q=document.getElementById('q'), rows=document.querySelectorAll('#tbl tbody tr');
+  if(q) q.addEventListener('input',function(){
+    var v=q.value.trim().toLowerCase();
+    rows.forEach(function(r){ r.classList.toggle('hide', v && r.textContent.toLowerCase().indexOf(v)===-1); });
+  });
+  var c=document.getElementById('clock');
+  function tick(){ c.textContent=new Date().toISOString().replace('T',' ').slice(0,19)+' UTC'; }
+  tick(); setInterval(tick,1000);
+})();
+</script>
 {% endblock %}
