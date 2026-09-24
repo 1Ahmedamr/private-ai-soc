@@ -50,3 +50,7 @@ node_modules/
 htmlcov/
 data/uploads/
 data/uploads/
+data/sigma_rules/windows/builtin_security/
+data/sigma_rules/windows/process_creation/
+data/sigma_rules/linux/builtin/
+data/sigma_rules/network/builtin/

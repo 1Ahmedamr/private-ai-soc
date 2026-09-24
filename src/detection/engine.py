@@ -11,7 +11,7 @@ from src.detection.rules.suricata_signature_match import detect_suricata_alerts
 from src.detection.rules.suspicious_dns import detect_suspicious_dns
 from src.detection.rules.suspicious_powershell import detect_suspicious_powershell
 from src.detection.rules.c2_beacon import detect_c2_beacon
-from src.sigma.loader import get_sigma_rules
+from src.sigma.loader import get_sigma_index
 from src.sigma.evaluator import SigmaMatch
 from src.threat_intel.ioc_store import get_ioc_store
 
@@ -66,31 +66,30 @@ class DetectionEngine:
         return results
 
     def analyze(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
+        from src.detection.rule_analytics import record_rule_fires
         all_results: List[DetectionResult] = []
         for event in events:
             all_results.extend(self.run_single_event_rules(event))
         all_results.extend(self.run_batch_rules(events))
         all_results.extend(self.run_sigma_rules(events))
         all_results.extend(self.run_ioc_checks(events))
+        record_rule_fires(all_results)
         return all_results
 
     
     def run_sigma_rules(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
         """
-        Runs all loaded Sigma rules against each event.
-        Pre-filtered by log source inside each rule's evaluate() method,
-        so Windows rules never run against Zeek events and vice versa.
-        This is what keeps the O(events × rules) cost manageable.
+        Evaluates Sigma rules using the pre-built source index.
+        Each event only runs against rules for its specific log source,
+        not all rules — this is the critical optimization for large PCAPs.
         """
-        sigma_rules = get_sigma_rules()
-        if not sigma_rules:
-            return []
-
+        index = get_sigma_index()
         results = []
-        seen_rule_ids = set()  # deduplicate: same rule firing on multiple events = one result
+        seen_rule_ids = set()
 
         for event in events:
-            for rule in sigma_rules:
+            relevant_rules = index.get_rules_for_source(event.source)
+            for rule in relevant_rules:
                 match = rule.evaluate(event)
                 if match and match.rule_id not in seen_rule_ids:
                     seen_rule_ids.add(match.rule_id)
@@ -102,7 +101,7 @@ class DetectionEngine:
                         mitre_technique=match.mitre_technique,
                         mitre_tactic=match.mitre_tactic,
                         description=f"Sigma rule matched: {match.description}",
-                        confidence=0.8,  # slightly lower than hand-written rules
+                        confidence=0.8,
                         reopen_window_hours=48,
                     ))
         return results
