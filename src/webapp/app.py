@@ -5,7 +5,6 @@ import uuid
 from pathlib import Path
 from functools import wraps
 import secrets
-
 from flask import Flask, render_template, abort, request, Response, session, jsonify
 from werkzeug.utils import secure_filename
 from src.detection.rule_analytics import get_rule_stats
@@ -13,6 +12,11 @@ from src.incidents.store import IncidentStore
 from src.models.incident_schema import IncidentStatus
 from src.dashboard.timeline import build_timeline_entries
 from src.pipeline.file_analyzer import analyze_file
+
+from dotenv import load_dotenv
+load_dotenv()
+
+
 
 DB_PATH = "data/processed/soc_incidents.db"
 UPLOAD_FOLDER = "data/uploads"
