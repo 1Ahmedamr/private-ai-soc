@@ -51,6 +51,16 @@ FIELD_MAP: dict = {
     # Generic
     "EventType": "event_type",
     "LogonType": None,            # not captured in current schema
+
+        # Sysmon extended fields
+    "ParentImage": "parent_process",
+    "ParentCommandLine": "parent_command",
+    "ProcessGuid": "process_guid",
+    "TargetImage": "target_process",
+    "Hashes": "file_hash",
+    "Initiated": "network_initiated",
+    "SourceImage": "process",
+    "TargetParentProcessId": None,  # not captured
 }
 
 

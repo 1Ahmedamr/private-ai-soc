@@ -81,4 +81,8 @@ def _sniff_text_format(file_path: str) -> SupportedFormat:
 
         return "unknown"
     except Exception:
+        if "EventID" in first_obj and ("Image" in first_obj or "EventData" in first_obj):
+            return "sysmon_json"
+        if first_obj.get("event_id") in ("1", "3", "7", "10", "22") and "process" in first_obj.get("event_type", ""):
+            return "sysmon_json"
         return "unknown"

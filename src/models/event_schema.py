@@ -77,3 +77,11 @@ class NormalizedEvent(BaseModel):
         return v
 
     model_config = {"use_enum_values": True}
+
+        # Sysmon-specific fields
+    parent_process: Optional[str] = None      # ParentImage
+    parent_command: Optional[str] = None      # ParentCommandLine  
+    process_guid: Optional[str] = None        # ProcessGuid (unique per process instance)
+    target_process: Optional[str] = None      # TargetImage (for process injection)
+    file_hash: Optional[str] = None           # Hashes (MD5/SHA256)
+    network_initiated: Optional[bool] = None  # Initiated field in Sysmon Event 3
