@@ -60,19 +60,13 @@ class SigmaRule:
         self.condition = self.detection.get("condition", "")
 
     def _matches_logsource(self, event: NormalizedEvent) -> bool:
-        """
-        Quick pre-filter: skip rules that can't possibly match this
-        event's source. This is the key optimization that prevents
-        evaluating all 15,000 rules against every event.
-        """
         product = self.logsource_product
-        category = self.logsource_category
 
         if product == "windows" and event.source != "windows":
             return False
         if product == "linux" and event.source != "linux":
             return False
-        if product == "zeek" and event.source != "zeek":
+        if product == "zeek" and event.source not in ("zeek", "suricata"):
             return False
 
         return True

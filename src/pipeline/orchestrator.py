@@ -12,6 +12,7 @@ from src.assets.inventory import AssetInventory
 from src.ai.evidence import build_evidence
 from src.ai.ollama_client import investigate
 from src.ai.policy import should_auto_investigate
+from src.detection.rule_analytics import record_rule_fires
 
 HISTORY_LOOKBACK_HOURS = 24 * 7
 
@@ -47,6 +48,7 @@ class PipelineOrchestrator:
 
         detections = self.detection_engine.analyze(full_history)
 
+
         # Determine criticality from whatever host/ip appears in the
         # affected events - checking dst_ip too, since for network
         # events the DESTINATION being scanned/attacked matters more
@@ -54,7 +56,10 @@ class PipelineOrchestrator:
         is_critical = self._resolve_criticality(full_history)
 
         incidents = self.incident_engine.process(full_history, detections, is_critical_asset=is_critical)
+        # Record which rules fired for analytics
+        record_rule_fires(detections)
 
+        
         for incident in incidents:
             if should_auto_investigate(incident):
                 self.investigate_incident(incident, self.incident_engine.store)

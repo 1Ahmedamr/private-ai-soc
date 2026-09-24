@@ -8,7 +8,7 @@ import secrets
 
 from flask import Flask, render_template, abort, request, Response, session, jsonify
 from werkzeug.utils import secure_filename
-
+from src.detection.rule_analytics import get_rule_stats
 from src.incidents.store import IncidentStore
 from src.models.incident_schema import IncidentStatus
 from src.dashboard.timeline import build_timeline_entries
@@ -228,3 +228,9 @@ def not_found(e):
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
+
+@app.route("/analytics")
+@require_auth
+def analytics():
+    stats = get_rule_stats()
+    return render_template("analytics.html", stats=stats)

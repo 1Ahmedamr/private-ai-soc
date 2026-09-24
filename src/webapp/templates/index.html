@@ -99,6 +99,9 @@ tr.hide{display:none}
     </label>
     <span class="clock" id="clock"></span>
     <a class="btn" href="/analyze">Analyze a log file →</a>
+    <a href="/analytics" {% if request.path.startswith('/analytics') %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Rule analytics
+    </a>    
   </div>
 </div>
 

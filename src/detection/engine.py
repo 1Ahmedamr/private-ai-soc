@@ -13,6 +13,7 @@ from src.detection.rules.suspicious_powershell import detect_suspicious_powershe
 from src.detection.rules.c2_beacon import detect_c2_beacon
 from src.sigma.loader import get_sigma_rules
 from src.sigma.evaluator import SigmaMatch
+from src.threat_intel.ioc_store import get_ioc_store
 
 
 class DetectionEngine:
@@ -70,6 +71,7 @@ class DetectionEngine:
             all_results.extend(self.run_single_event_rules(event))
         all_results.extend(self.run_batch_rules(events))
         all_results.extend(self.run_sigma_rules(events))
+        all_results.extend(self.run_ioc_checks(events))
         return all_results
 
     
@@ -115,3 +117,44 @@ class DetectionEngine:
             "low": Severity.LOW,
             "informational": Severity.INFO,
         }.get(sigma_level.lower(), Severity.MEDIUM)
+
+
+    def run_ioc_checks(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
+        """
+        Checks every event's IPs and domains against the local IOC store.
+        A single IOC match per unique (src_ip, ioc_value) pair creates one
+        DetectionResult — not one per matching event, to avoid noise.
+        """
+        from src.models.event_schema import Severity
+        store = get_ioc_store()
+        results = []
+        seen = set()
+
+        for event in events:
+            matches = store.check_event(event)
+            for match in matches:
+                dedup_key = (match.ioc_value, match.ioc_type)
+                if dedup_key in seen:
+                    continue
+                seen.add(dedup_key)
+
+                severity = Severity.HIGH if match.confidence >= 0.8 else Severity.MEDIUM
+                results.append(DetectionResult(
+                    rule_name=f"IOC Match: {match.ioc_type.upper()}",
+                    rule_id=f"SOC-IOC-{match.ioc_type.upper()}-001",
+                    triggered=True,
+                    severity=severity,
+                    mitre_technique=None,
+                    mitre_tactic=None,
+                    description=(
+                        f"IOC match: {match.ioc_type} '{match.ioc_value}' found in local "
+                        f"threat intel feed '{match.source}'. "
+                        f"Threat: {match.threat_name}. "
+                        f"Confidence: {match.confidence:.0%}. "
+                        f"This IP/domain has been associated with malicious activity — "
+                        f"verify against current threat intel before concluding."
+                    ),
+                    confidence=match.confidence,
+                    reopen_window_hours=168,
+                ))
+        return results

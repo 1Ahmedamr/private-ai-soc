@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Rule Analytics - Private AI SOC{% endblock %}
+{% block content %}
+
+{# Busiest rules first #}
+{% set rows = stats|sort(attribute='total_fires', reverse=true)|list if stats else [] %}
+{% set ns = namespace(total=0, high=0, active=0, low=0) %}
+{% for s in rows %}
+  {% set ns.total = ns.total + (s.total_fires or 0) %}
+  {% if s.total_fires > 50 %}{% set ns.high = ns.high + 1 %}
+  {% elif s.total_fires > 10 %}{% set ns.active = ns.active + 1 %}
+  {% else %}{% set ns.low = ns.low + 1 %}{% endif %}
+{% endfor %}
+{% set peak = ([ (rows|map(attribute='total_fires')|max) if rows else 1, 1 ]|max) %}
+
+<style>
+.ra-grid{display:grid;gap:16px;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}
+.ra-grid .card{margin:0}
+@media (max-width:1000px){.ra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ra-grid .k{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint)}
+.ra-grid .v{font-family:var(--display);font-size:46px;line-height:1.05;margin:6px 0 2px}
+.ra-grid .s{font-size:13px;color:var(--ink-soft)}
+
+.fires{display:grid;grid-template-columns:minmax(60px,1fr) 44px;gap:10px;align-items:center;min-width:170px}
+.fires .track{height:8px;border-radius:99px;background:rgba(43,39,33,.08);overflow:hidden}
+.fires .track span{display:block;height:100%;border-radius:99px}
+.fires b{text-align:right;font-variant-numeric:tabular-nums;font-size:17px}
+
+.sig{display:inline-flex;align-items:center;gap:8px;padding:.15rem .7rem;border-radius:999px;font-size:14px;border:1px solid currentColor;white-space:nowrap}
+.sig i{font-style:normal}
+.sig.hi{color:var(--med)}
+.sig.ok{color:var(--low)}
+.sig.lo{color:var(--ink-soft)}
+.when{color:var(--ink-soft);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.table-wrap{overflow-x:auto}
+.legend-note{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:14px;color:var(--ink-soft);margin-top:14px}
+</style>
+
+<div class="page-head">
+  <h1>Detection rule analytics</h1>
+  <p>Which rules are firing, and how often. High-volume rules may need tuning; silent rules may be misconfigured or irrelevant to your environment.</p>
+</div>
+
+{% if not rows %}
+<div class="section">
+  <p><strong>No analytics data yet.</strong></p>
+  <p class="note">Run some analyses first, then come back to see which rules fire most.</p>
+  <a class="btn" href="/analyze">Analyze a log file →</a>
+</div>
+{% else %}
+
+<div class="ra-grid">
+  <div class="card"><div class="k">Rules that fired</div><div class="v">{{ rows|length }}</div><div class="s">distinct detection rules</div></div>
+  <div class="card"><div class="k">Total fires</div><div class="v">{{ ns.total }}</div><div class="s">across all analyses</div></div>
+  <div class="card"><div class="k">Review threshold</div><div class="v" style="color:var(--med)">{{ ns.high }}</div><div class="s">rules over 50 fires</div></div>
+  <div class="card"><div class="k">Low signal</div><div class="v">{{ ns.low }}</div><div class="s">rules with 10 fires or fewer</div></div>
+</div>
+
+<div class="section">
+  <div class="card-title" style="display:flex;justify-content:space-between;align-items:baseline">
+    <h3 style="margin:0">Rules by volume</h3>
+    <span class="caps">busiest first</span>
+  </div>
+  <div class="table-wrap">
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Rule</th>
+        <th>Rule ID</th>
+        <th>Total fires</th>
+        <th>First fired</th>
+        <th>Last fired</th>
+        <th>Signal</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for s in rows %}
+    {% set tone = 'hi' if s.total_fires > 50 else 'ok' if s.total_fires > 10 else 'lo' %}
+    <tr>
+      <td>{{ s.rule_name }}</td>
+      <td><span class="badge">{{ s.rule_id }}</span></td>
+      <td>
+        <div class="fires">
+          <div class="track"><span style="width:{{ (s.total_fires * 100 / peak)|round(1) }}%;background:{{ 'var(--med)' if tone == 'hi' else 'var(--low)' if tone == 'ok' else 'var(--ink-faint)' }}"></span></div>
+          <b>{{ s.total_fires }}</b>
+        </div>
+      </td>
+      <td class="when">{{ (s.first_fired or '')[:19] }}</td>
+      <td class="when">{{ (s.last_fired or '')[:19] }}</td>
+      <td>
+        {% if tone == 'hi' %}<span class="sig hi"><i>⚠</i>High volume — review threshold</span>
+        {% elif tone == 'ok' %}<span class="sig ok"><i>✓</i>Active</span>
+        {% else %}<span class="sig lo"><i>○</i>Low — may need more data</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div class="legend-note">
+    <span>⚠ over 50 fires</span><span>✓ 11 to 50 fires</span><span>○ 10 fires or fewer</span>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
