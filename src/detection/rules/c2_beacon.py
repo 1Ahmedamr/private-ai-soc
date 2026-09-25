@@ -15,8 +15,7 @@ def detect_c2_beacon(events: List[NormalizedEvent], min_connections: int = 5, ma
     destination have LOW variance relative to their mean - i.e., they're
     suspiciously periodic.
     """
-    conns = [e for e in events if e.event_type == EventType.NETWORK_CONNECTION
-             and (e.conn_state == "S0" or e.conn_state is None or e.network_initiated is True)]    
+    conns = [e for e in events if e.event_type == EventType.NETWORK_CONNECTION]
     grouped: dict[tuple, list] = {}
     for e in conns:
         grouped.setdefault((e.src_ip, e.dst_ip), []).append(e)
