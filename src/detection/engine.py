@@ -88,7 +88,7 @@ class DetectionEngine:
         seen_rule_ids = set()
 
         for event in events:
-            relevant_rules = index.get_rules_for_source(event.source)
+            relevant_rules = index.get_rules_for_source(event.source, event.event_type)
             for rule in relevant_rules:
                 match = rule.evaluate(event)
                 if match and match.rule_id not in seen_rule_ids and match.severity not in ("low", "informational"):

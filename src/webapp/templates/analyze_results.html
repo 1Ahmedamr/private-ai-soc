@@ -2,6 +2,54 @@
 {% block title %}Analysis Results - Private AI SOC{% endblock %}
 {% block content %}
 
+{# ---------- macro: Sysmon / process evidence cards ---------- #}
+{% macro evidence_panel(events, limit=12) %}
+{% set kinds = {1:'Process created', 3:'Network connection', 7:'Image loaded', 10:'Process access', 22:'DNS query'} %}
+{% set ns = namespace(n=0) %}
+{% for e in events %}
+  {% set proc = e.process %}
+  {% set cmd = e.command %}
+  {% if ns.n < limit and (proc or cmd or e.parent_process or e.parent_command or e.target_process or e.file_hash or e.process_guid or e.network_initiated in (true, false)) %}
+  {% set ns.n = ns.n + 1 %}
+  {% set kind = kinds.get(e.event_id|int(0), '') %}
+  <div class="ev">
+    <div class="ev-top">
+      {% if kind %}<span class="ev-kind">{{ kind }}</span>{% endif %}
+      {% if e.timestamp %}<span>{{ (e.timestamp|string)[:19] }}</span>{% endif %}
+      {% if e.host %}<span>Host {{ e.host }}</span>{% endif %}
+      {% if e.user %}<span>User {{ e.user }}</span>{% endif %}
+      {% if e.network_initiated in (true, false) %}
+        <span class="pill {{ 'out' if e.network_initiated else '' }}">{{ 'Host initiated the connection' if e.network_initiated else 'Connection received by host' }}</span>
+      {% endif %}
+    </div>
+
+    {% if e.parent_process or proc or e.target_process %}
+    <div class="chain">
+      {% if e.parent_process %}<span class="node" title="Parent process">{{ e.parent_process }}</span><span class="arrow">→</span>{% endif %}
+      {% if proc %}<span class="node self" title="Process">{{ proc }}</span>{% endif %}
+      {% if e.target_process %}<span class="arrow">→</span><span class="node tgt" title="Target process">{{ e.target_process }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if e.parent_command %}<div class="lbl">Parent command</div><code class="mono">{{ e.parent_command }}</code>{% endif %}
+    {% if cmd %}<div class="lbl">Command line</div><code class="mono">{{ cmd }}</code>{% endif %}
+
+    {% if e.file_hash %}
+    {% set h = e.file_hash|string %}
+    <div class="lbl">File hash · {{ 'SHA256' if h|length == 64 else 'MD5' if h|length == 32 else 'Hash' }}</div>
+    <div class="hash-row">
+      <code class="mono">{{ h }}</code>
+      <button class="copy" type="button" data-copy="{{ h }}" onclick="copyText(this)">Copy</button>
+    </div>
+    {% endif %}
+
+    {% if e.process_guid %}<div class="lbl">Process GUID</div><code class="mono" style="font-size:12.5px">{{ e.process_guid }}</code>{% endif %}
+  </div>
+  {% endif %}
+{% endfor %}
+{% if ns.n == 0 %}<p class="note">No process, hash or network details were captured for this incident.</p>{% endif %}
+{% endmacro %}
+
 {# Most important first: sort by risk, highest on top #}
 {% set incs = result.incidents|sort(attribute='risk_score', reverse=true)|list %}
 {% set ns = namespace(crit=0, high=0, med=0, low=0, maxr=0) %}
@@ -81,7 +129,6 @@
 .actions li:first-child::before{background:var(--c)}
 .actions li:first-child::after{content:"Do this first";grid-column:2;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--c);font-weight:400;margin-top:-4px}
 .facts{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:15px;margin:0 0 4px}
-.facts b{font-weight:400;font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint);margin-right:6px}
 .evidence{margin-top:16px;border-top:1px solid var(--hairline);padding-top:12px}
 .evidence summary{cursor:pointer;font-size:16px;list-style:none;display:flex;align-items:center;gap:8px}
 .evidence summary::before{content:"▸";transition:transform .25s;display:inline-block}
@@ -93,6 +140,27 @@
 
 .inc{animation:rise .6s cubic-bezier(.22,1,.36,1) backwards}
 .inc:nth-of-type(2){animation-delay:.1s}.inc:nth-of-type(3){animation-delay:.2s}.inc:nth-of-type(n+4){animation-delay:.3s}
+
+/* ---- VirusTotal box ---- */
+.vt-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.vt-row input,.vt-row select{
+  padding:.7rem 1rem;border-radius:999px;border:1px solid var(--hairline);
+  background:rgba(250,246,238,.85);color:var(--ink);font:inherit;font-size:16px;
+}
+.vt-row input{flex:1;min-width:220px}
+.vt-row input:focus-visible,.vt-row select:focus-visible{border-color:var(--ink)}
+.vt-res{
+  margin-top:1rem;padding:16px 18px;border-radius:12px;border:1px solid var(--hairline);
+  border-left:5px solid var(--low);background:rgba(255,252,244,.7);line-height:1.7;
+  animation:rise .4s cubic-bezier(.22,1,.36,1) backwards;
+}
+.vt-res.crit{border-left-color:var(--crit)}
+.vt-res.med{border-left-color:var(--med)}
+.vt-res.low{border-left-color:var(--low)}
+.vt-res .verdict{font-family:var(--display);font-size:26px;margin-right:6px}
+.vt-res.crit .verdict{color:var(--crit)}
+.vt-res.med .verdict{color:var(--med)}
+.vt-res.low .verdict{color:var(--low)}
 
 /* ---- AI analyst: dock + big panel ---- */
 .pad{height:120px}
@@ -225,6 +293,11 @@ body.chat-open .dock{opacity:0;pointer-events:none;transform:translate(-50%,24px
       <span>{% for t in incident.mitre_techniques %}<a class="badge" href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/" target="_blank" rel="noopener">{{ t }}</a>{% else %}<span class="note">None mapped</span>{% endfor %}</span>
     </div>
 
+    {% if incident.events %}
+    <h3>Process &amp; host evidence</h3>
+    {{ evidence_panel(incident.events, 6) }}
+    {% endif %}
+
     <details class="evidence" {{ 'open' if loop.first }}>
       <summary>Detection evidence ({{ incident.detections|length }})</summary>
       <ul>
@@ -240,29 +313,8 @@ body.chat-open .dock{opacity:0;pointer-events:none;transform:translate(-50%,24px
 {% endfor %}
 
 <p class="note">All analysis performed locally. No data was sent to external services. Uploaded file deleted after analysis.</p>
-{% if result.incidents %}
-<style>
-.vt-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
-.vt-row input,.vt-row select{
-  padding:.7rem 1rem;border-radius:999px;border:1px solid var(--hairline);
-  background:rgba(250,246,238,.85);color:var(--ink);font:inherit;font-size:16px;
-}
-.vt-row input{flex:1;min-width:220px}
-.vt-row input:focus-visible,.vt-row select:focus-visible{border-color:var(--ink)}
-.vt-res{
-  margin-top:1rem;padding:16px 18px;border-radius:12px;border:1px solid var(--hairline);
-  border-left:5px solid var(--low);background:rgba(255,252,244,.7);line-height:1.7;
-  animation:rise .4s cubic-bezier(.22,1,.36,1) backwards;
-}
-.vt-res.crit{border-left-color:var(--crit)}
-.vt-res.med{border-left-color:var(--med)}
-.vt-res.low{border-left-color:var(--low)}
-.vt-res .verdict{font-family:var(--display);font-size:26px;margin-right:6px}
-.vt-res.crit .verdict{color:var(--crit)}
-.vt-res.med .verdict{color:var(--med)}
-.vt-res.low .verdict{color:var(--low)}
-</style>
 
+{% if result.incidents %}
 <div class="section vt">
   <h3>VirusTotal enrichment <span class="badge">opt-in</span></h3>
   <p class="alert warn" role="note">

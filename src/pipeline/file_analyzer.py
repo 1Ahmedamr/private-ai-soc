@@ -180,6 +180,12 @@ def _parse_by_format(file_path: str, fmt: str, result: AnalysisResult) -> List[N
         )
         return parse_firewall_logs(content)
 
+    if fmt == "sysmon_json":
+        from src.ingestion.sysmon_parser import parse_sysmon_events
+        data = json.loads(content)
+        if not isinstance(data, list):
+            data = [data]
+        return parse_sysmon_events(data)
     return []
 
 

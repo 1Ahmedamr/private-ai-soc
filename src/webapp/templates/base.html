@@ -108,6 +108,7 @@ tr:hover td{background:rgba(255,252,244,.5)}
   .nav{flex-direction:row}
   .side .foot{display:none}
 }
+
 /* ---------- additions: accessibility, forms, alerts, chat, timeline ---------- */
 :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:4px}
 .caps,th,.stat .k,.brand span,.side .foot{font-size:12px}
@@ -164,7 +165,6 @@ tr:hover td{background:rgba(255,252,244,.5)}
 .status.ok{color:var(--low)}
 .status.err{color:var(--crit)}
 
-
 /* ---------- animations (all pages) ---------- */
 @keyframes pageIn{from{opacity:0;transform:translateY(10px)}}
 @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985)}}
@@ -206,9 +206,59 @@ tr:hover td{background:rgba(255,252,244,.5)}
 /* leaving a page */
 body.leaving .main{opacity:0;transform:translateY(-8px);transition:opacity .17s ease,transform .17s ease}
 
-
+/* ---------- Sysmon evidence cards ---------- */
+.ev{
+  padding:14px 16px;border:1px solid var(--hairline);border-radius:12px;margin-bottom:12px;
+  background:rgba(255,252,244,.6);animation:rise .45s cubic-bezier(.22,1,.36,1) backwards;
+}
+.ev-top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:10px;font-size:14px;color:var(--ink-soft)}
+.ev-kind{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--earth);border:1px solid var(--earth);border-radius:6px;padding:.05rem .5rem}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 10px}
+.node{padding:.3rem .8rem;border-radius:10px;border:1px solid var(--hairline);background:#fff8;font-size:15px;font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.node.self{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.node.tgt{border-color:var(--crit);color:var(--crit)}
+.arrow{color:var(--ink-faint)}
+.mono{
+  display:block;padding:8px 10px;border-radius:8px;background:rgba(43,39,33,.07);
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;line-height:1.5;word-break:break-all;white-space:pre-wrap;margin:4px 0 10px;
+}
+.lbl{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint)}
+.hash-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
+.hash-row .mono{margin:0;flex:1;min-width:220px}
+.copy{border:1px solid var(--hairline);background:rgba(255,252,244,.8);border-radius:999px;padding:.25rem .8rem;font:inherit;font-size:14px;cursor:pointer;color:var(--ink);transition:background .2s}
+.copy:hover{background:#fff}
+.pill{display:inline-block;padding:.12rem .7rem;border-radius:999px;border:1px solid var(--hairline);font-size:14px;background:rgba(255,252,244,.8)}
+.pill.out{border-color:var(--high);color:var(--high)}
 </style>
 </head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <b>Private AI SOC</b>
+      <span>Detect · Investigate · Respond</span>
+    </div>
+    <nav class="nav">
+      <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Dashboard
+      </a>
+      <a href="/#queue">
+        <svg viewBox="0 0 24 24"><path d="M12 4 3 20h18L12 4Z"/><path d="M12 10v4.5M12 17.4v.1"/></svg>Incidents
+      </a>
+      <a href="/analyze" {% if request.path.startswith('/analyze') %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>Analyze a log
+      </a>
+      <a href="/analytics" {% if request.path.startswith('/analytics') %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Rule analytics
+      </a>
+    </nav>
+    <div class="foot"><span class="dot"></span>All processing local<br>v1.0.0</div>
+  </aside>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
 <script>
 (function () {
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -243,30 +293,16 @@ body.leaving .main{opacity:0;transform:translateY(-8px);transition:opacity .17s 
   });
   window.addEventListener('pageshow', function () { document.body.classList.remove('leaving'); });
 })();
+
+function copyText(btn) {
+  var t = btn.dataset.copy || '';
+  var done = function () {
+    var old = btn.textContent; btn.textContent = 'Copied ✓';
+    setTimeout(function () { btn.textContent = old; }, 1400);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(done);
+  else { var a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); done(); }
+}
 </script>
-<body>
-<div class="shell">
-  <aside class="side">
-    <div class="brand">
-      <b>Private AI SOC</b>
-      <span>Detect · Investigate · Respond</span>
-    </div>
-    <nav class="nav">
-      <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>
-        <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Dashboard
-      </a>
-      <a href="/#queue">
-        <svg viewBox="0 0 24 24"><path d="M12 4 3 20h18L12 4Z"/><path d="M12 10v4.5M12 17.4v.1"/></svg>Incidents
-      </a>
-      <a href="/analyze" {% if request.path.startswith('/analyze') %}aria-current="page"{% endif %}>
-        <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>Analyze a log
-      </a>
-    </nav>
-    <div class="foot"><span class="dot"></span>All processing local<br>v1.0.0</div>
-  </aside>
-  <main class="main">
-    {% block content %}{% endblock %}
-  </main>
-</div>
 </body>
 </html>

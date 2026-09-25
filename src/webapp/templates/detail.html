@@ -1,6 +1,54 @@
 {% extends "base.html" %}
 {% block title %}{{ incident.incident_id }} - Private AI SOC{% endblock %}
 {% block content %}
+
+{% macro evidence_panel(events, limit=12) %}
+{% set kinds = {1:'Process created', 3:'Network connection', 7:'Image loaded', 10:'Process access', 22:'DNS query'} %}
+{% set ns = namespace(n=0) %}
+{% for e in events %}
+  {% set proc = e.process %}
+  {% set cmd = e.command %}
+  {% if ns.n < limit and (proc or cmd or e.parent_process or e.parent_command or e.target_process or e.file_hash or e.process_guid or e.network_initiated in (true, false)) %}
+  {% set ns.n = ns.n + 1 %}
+  {% set kind = kinds.get(e.event_id|int(0), '') %}
+  <div class="ev">
+    <div class="ev-top">
+      {% if kind %}<span class="ev-kind">{{ kind }}</span>{% endif %}
+      {% if e.timestamp %}<span>{{ (e.timestamp|string)[:19] }}</span>{% endif %}
+      {% if e.host %}<span>Host {{ e.host }}</span>{% endif %}
+      {% if e.user %}<span>User {{ e.user }}</span>{% endif %}
+      {% if e.network_initiated in (true, false) %}
+        <span class="pill {{ 'out' if e.network_initiated else '' }}">{{ 'Host initiated the connection' if e.network_initiated else 'Connection received by host' }}</span>
+      {% endif %}
+    </div>
+
+    {% if e.parent_process or proc or e.target_process %}
+    <div class="chain">
+      {% if e.parent_process %}<span class="node" title="Parent process">{{ e.parent_process }}</span><span class="arrow">→</span>{% endif %}
+      {% if proc %}<span class="node self" title="Process">{{ proc }}</span>{% endif %}
+      {% if e.target_process %}<span class="arrow">→</span><span class="node tgt" title="Target process">{{ e.target_process }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if e.parent_command %}<div class="lbl">Parent command</div><code class="mono">{{ e.parent_command }}</code>{% endif %}
+    {% if cmd %}<div class="lbl">Command line</div><code class="mono">{{ cmd }}</code>{% endif %}
+
+    {% if e.file_hash %}
+    {% set h = e.file_hash|string %}
+    <div class="lbl">File hash · {{ 'SHA256' if h|length == 64 else 'MD5' if h|length == 32 else 'Hash' }}</div>
+    <div class="hash-row">
+      <code class="mono">{{ h }}</code>
+      <button class="copy" type="button" data-copy="{{ h }}" onclick="copyText(this)">Copy</button>
+    </div>
+    {% endif %}
+
+    {% if e.process_guid %}<div class="lbl">Process GUID</div><code class="mono" style="font-size:12.5px">{{ e.process_guid }}</code>{% endif %}
+  </div>
+  {% endif %}
+{% endfor %}
+{% if ns.n == 0 %}<p class="note">No process, hash or network details were captured for this incident.</p>{% endif %}
+{% endmacro %}
+
 <a href="/" class="back">← Back to queue</a>
 <div class="page-head">
   <h1>{{ incident.title }}</h1>
@@ -35,6 +83,12 @@
     {% endfor %}
   </ul>
   {% else %}<p class="note">No detections recorded.</p>{% endif %}
+</div>
+
+<div class="section">
+  <h3>Process &amp; host evidence</h3>
+  <p class="note">Parent and child processes, commands, file hashes and network direction captured from Sysmon events.</p>
+  {{ evidence_panel(incident.events) }}
 </div>
 
 <div class="section">

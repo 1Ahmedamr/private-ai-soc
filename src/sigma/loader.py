@@ -57,14 +57,19 @@ class SigmaRuleIndex:
 
     def __init__(self, rules: List[SigmaRule]):
         self._by_product: Dict[str, List[SigmaRule]] = {}
+        self._by_category: Dict[str, List[SigmaRule]] = {}
         self._universal: List[SigmaRule] = []
 
         for rule in rules:
             product = rule.logsource_product
+            category = rule.logsource_category
             if product:
                 self._by_product.setdefault(product, []).append(rule)
-            else:
+            if category:
+                self._by_category.setdefault(category, []).append(rule)
+            if not product and not category:
                 self._universal.append(rule)
+
 
         total = sum(len(v) for v in self._by_product.values())
         print(f"[Sigma Index] {total} rules indexed by product, "
@@ -72,11 +77,7 @@ class SigmaRuleIndex:
         for product, rules_list in self._by_product.items():
             print(f"  {product}: {len(rules_list)} rules")
 
-    def get_rules_for_source(self, source: str) -> List[SigmaRule]:
-        """
-        Returns only the rules relevant to this event source.
-        Maps our EventSource values to Sigma product names.
-        """
+    def get_rules_for_source(self, source: str, event_type: str = "") -> List[SigmaRule]:
         source_to_product = {
             "windows": "windows",
             "linux": "linux",
@@ -85,8 +86,21 @@ class SigmaRuleIndex:
             "firewall": "firewall",
         }
         product = source_to_product.get(source, source)
-        return self._by_product.get(product, []) + self._universal
+        rules = list(self._by_product.get(product, []))
 
+        # For Windows process events, also include Sysmon category rules
+        if source == "windows" and "process" in event_type:
+            rules += self._by_category.get("process_creation", [])
+            rules += self._by_category.get("network_connection", [])
+
+        # Deduplicate by rule_id
+        seen = set()
+        unique = []
+        for r in rules + self._universal:
+            if r.rule_id not in seen:
+                seen.add(r.rule_id)
+                unique.append(r)
+        return unique
 
 # Module-level cache
 _rule_index: SigmaRuleIndex = None
