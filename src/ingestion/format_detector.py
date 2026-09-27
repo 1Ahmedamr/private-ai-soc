@@ -44,7 +44,7 @@ def _sniff_json_format(file_path: str) -> SupportedFormat:
     """Read first valid JSON object to identify source."""
     try:
         with open(file_path) as f:
-            content = f.read(4096)
+            content = f.read()
 
         content = content.strip()
         if content.startswith("["):
@@ -62,6 +62,8 @@ def _sniff_json_format(file_path: str) -> SupportedFormat:
             return "suricata_eve_json"
         if "alert" in first_obj and "signature" in first_obj.get("alert", {}):
             return "suricata_eve_json"
+        if "EventID" in first_obj and ("Image" in first_obj or "EventData" in first_obj):
+            return "sysmon_json"
 
         return "unknown"
     except Exception:
@@ -81,8 +83,4 @@ def _sniff_text_format(file_path: str) -> SupportedFormat:
 
         return "unknown"
     except Exception:
-        if "EventID" in first_obj and ("Image" in first_obj or "EventData" in first_obj):
-            return "sysmon_json"
-        if first_obj.get("event_id") in ("1", "3", "7", "10", "22") and "process" in first_obj.get("event_type", ""):
-            return "sysmon_json"
         return "unknown"

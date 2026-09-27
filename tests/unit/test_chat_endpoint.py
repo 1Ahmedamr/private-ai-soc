@@ -28,7 +28,7 @@ def test_chat_without_session_returns_400(client):
         headers=auth_header(),
     )
     assert response.status_code == 400
-    assert "No analysis context" in response.get_json()["error"]
+    assert "analysis context" in response.get_json()["error"].lower() or "session" in response.get_json()["error"].lower()
 
 
 def test_chat_without_auth_returns_401(client):

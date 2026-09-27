@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import List, Optional
 from dataclasses import dataclass, field
-
+from src.correlation.host_engine import correlate_by_host, generate_narrative, HostSummary
 from src.models.event_schema import NormalizedEvent
 from src.models.incident_schema import Incident
 from src.ingestion.format_detector import detect_format
@@ -29,6 +29,7 @@ class AnalysisResult:
     events_parsed: int
     incidents: List[Incident] = field(default_factory=list)
     ai_summaries: dict = field(default_factory=dict)
+    host_summaries: list = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     parse_warning: Optional[str] = None
 
@@ -92,6 +93,22 @@ class AnalysisResult:
                 }
                 for inc_id, v in self.ai_summaries.items()
             },
+            "host_summaries": [
+                {
+                    "victim_ip": hs.victim_ip,
+                    "victim_host": hs.victim_host,
+                    "incident_ids": hs.incident_ids,
+                    "first_seen": hs.first_seen.isoformat(),
+                    "last_seen": hs.last_seen.isoformat(),
+                    "duration_minutes": hs.duration_minutes,
+                    "highest_severity": hs.highest_severity,
+                    "highest_risk": hs.highest_risk,
+                    "mitre_techniques": hs.mitre_techniques,
+                    "mitre_tactics": hs.mitre_tactics,
+                    "detection_names": hs.detection_names,
+                }
+                for hs in self.host_summaries
+            ],
         }
 
 
@@ -131,6 +148,8 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
     else:
         incidents = orchestrator.ingest(events)
     result.incidents = incidents
+        # Host-based correlation
+    result.host_summaries = correlate_by_host(incidents)
 
     for incident in incidents:
         evidence = build_evidence(incident)

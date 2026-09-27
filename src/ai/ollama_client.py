@@ -44,6 +44,15 @@ MANDATORY LANGUAGE MAPPING - violating these is a serious error, not a style cho
 - Copy timestamps and IP addresses EXACTLY from the evidence fields - never
   round, approximate, or retype from memory. Read them directly from the
   source_ips and target_ips fields provided.
+- Recommended actions must be EVIDENCE-DRIVEN and SPECIFIC. Never write
+  "check the Suricata rule documentation" — analysts already know this.
+  Instead write actions like:
+  "Extract all communications between [src_ip] and [dst_ip] and check for
+  beaconing patterns (regular intervals, similar payload sizes)"
+  "Review DNS requests from [host] and identify all .top/.xyz/.pw domains queried"
+  "Verify whether the downloaded file from [src_ip] was written to disk"
+  "Check authentication logs on [host] for lateral movement within 2 hours"
+  Each action must reference specific IPs, timestamps, or artifacts from the evidence.
 
 When identifying the MITRE attack stage, use the tactic from the
 mitre_techniques field directly. For T1046 (Network Service Discovery),

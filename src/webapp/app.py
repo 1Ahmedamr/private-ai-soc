@@ -23,7 +23,18 @@ UPLOAD_FOLDER = "data/uploads"
 ALLOWED_EXTENSIONS = {".json", ".log", ".txt", ".pcap", ".pcapng", ".cap"}
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
+# Secret key must be STABLE across restarts — os.urandom() changes on
+# every restart/reload, invalidating all sessions. Use .env or a fixed fallback.
+_secret = os.environ.get("FLASK_SECRET_KEY")
+if not _secret:
+    _secret_file = ".flask_secret"
+    try:
+        _secret = open(_secret_file).read().strip()
+    except FileNotFoundError:
+        import secrets as _sec
+        _secret = _sec.token_hex(32)
+        open(_secret_file, "w").write(_secret)
+app.secret_key = _secret
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 DASHBOARD_USERNAME = os.environ.get("DASHBOARD_USERNAME", "analyst")
@@ -111,7 +122,10 @@ def analyze_upload():
 @require_auth
 def chat():
     if "last_analysis" not in session:
-        return jsonify({"error": "No analysis context found. Please upload a file first."}), 400
+        return jsonify({
+            "error": "Session expired — please re-upload your file to restore the analysis context.",
+            "session_expired": True
+        }), 400
     data = request.get_json()
     if not data or "question" not in data:
         return jsonify({"error": "No question provided."}), 400
@@ -286,6 +300,64 @@ def enrich():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@app.route("/host-summary", methods=["POST"])
+@require_auth
+def host_summary():
+    if "last_analysis" not in session:
+        return jsonify({"error": "Session expired — please re-upload your file.", "session_expired": True}), 400
+    data = request.get_json()
+    victim_ip = data.get("victim_ip") if data else None
+    if not victim_ip:
+        return jsonify({"error": "victim_ip required"}), 400
+    analysis = session["last_analysis"]
+    host_sums = analysis.get("host_summaries", [])
+    target = next((hs for hs in host_sums if hs["victim_ip"] == victim_ip), None)
+    if not target:
+        return jsonify({"error": f"No host summary for {victim_ip}"}), 404
+    linked = [i for i in analysis["incidents"] if i["incident_id"] in target["incident_ids"]]
+    linked.sort(key=lambda i: i["first_seen"])
+    sequence = "\n".join(
+        f"  {n+1}. [{i['severity'].upper()}] {i['title']} (risk={i['risk_score']}, first={i['first_seen'][:19]})"
+        for n, i in enumerate(linked)
+    )
+    prompt = f"""You are a SOC analyst writing an attack narrative.
+
+HOST: {victim_ip}
+WINDOW: {target['first_seen'][:19]} to {target['last_seen'][:19]}
+DURATION: {target['duration_minutes']:.0f} minutes
+HIGHEST SEVERITY: {target['highest_severity'].upper()}
+MITRE: {', '.join(target['mitre_techniques']) or 'Unknown'}
+TACTICS: {', '.join(set(target['mitre_tactics'])) or 'Unknown'}
+
+INCIDENTS (chronological):
+{sequence}
+
+Write a 3-5 sentence attack narrative. Rules:
+- Say "source host" not "attacker"
+- Distinguish observed facts from inferences
+- Recommendations must reference specific IPs and artifacts from the evidence
+- Never say "check Suricata rule documentation"
+
+Respond ONLY with JSON: {{"narrative":"...","attack_stage":"...","confidence":"high/medium/low","priority_action":"..."}}"""
+
+    try:
+        import requests as req, json as j
+        r = req.post(
+            f"{os.environ.get('OLLAMA_HOST','http://localhost:11434')}/api/generate",
+            json={"model":"qwen3:8b","prompt":prompt,"stream":False,"format":"json"},
+            timeout=120,
+        )
+        r.raise_for_status()
+        parsed = j.loads(r.json()["response"])
+        return jsonify({
+            "victim_ip": victim_ip,
+            "incident_count": len(linked),
+            "duration_minutes": target["duration_minutes"],
+            **parsed,
+        })
+    except Exception as e:
+        return jsonify({"error": f"AI unavailable: {str(e)[:100]}"}), 503
+
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5001, host="127.0.0.1")

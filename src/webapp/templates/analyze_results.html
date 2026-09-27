@@ -266,7 +266,9 @@ body.chat-open .dock{opacity:0;pointer-events:none;transform:translate(-50%,24px
 
 {% for incident in incs %}
 {% set verdict = result.ai_summaries.get(incident.incident_id) %}
-<article class="section inc" id="inc-{{ loop.index }}" data-sev="{{ incident.severity|string|lower }}">
+
+
+<article class="section inc" id="inc-{{ incident.incident_id }}" data-sev="{{ incident.severity|string|lower }}">
   <header class="inc-head">
     <div class="rank">#{{ loop.index }}</div>
     <div>
@@ -415,6 +417,122 @@ async function enrichIOC() {
 }
 </script>
 {% endif %}
+{% if result.host_summaries %}
+<div class="section" data-sev="{{ 'critical' if (result.host_summaries|map(attribute='highest_severity')|list|select('equalto','critical')|list) else 'high' }}" style="border-left-width:5px;border-left-color:var(--c)">
+  <h2 style="margin-top:0">Host correlation — linked incidents</h2>
+  <p class="note">Multiple incidents were detected on the same host within the same time window. This may represent a single attack campaign rather than isolated events.</p>
+
+  {% for hs in result.host_summaries %}
+  {% set hsev = hs.highest_severity|string|lower %}
+  <div class="section" data-sev="{{ hsev }}" style="border-left:4px solid var(--c);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+      <div>
+        <h3 style="margin:0 0 4px">
+          <span class="sevtag" style="background:var(--c)">{{ hsev|upper }}</span>
+          Host <code class="mono" style="display:inline;padding:.1rem .5rem">{{ hs.victim_ip }}</code>
+          {% if hs.victim_host %}<span class="note">({{ hs.victim_host }})</span>{% endif %}
+        </h3>
+        <p class="note" style="margin:0">
+          {{ hs.incident_ids|length }} linked incidents · {{ hs.duration_minutes|round|int }} minutes · risk {{ hs.highest_risk }}/100
+        </p>
+      </div>
+      <button class="btn" type="button" data-ip="{{ hs.victim_ip }}" data-idx="{{ loop.index }}" onclick="generateNarrative(this)" id="narrative-btn-{{ loop.index }}">
+        Generate attack narrative →
+      </button>
+    </div>
+
+    <div style="margin-top:.8rem">
+      <span class="lbl">Linked incidents</span><br>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem">
+        {% for iid in hs.incident_ids %}
+        <a href="#inc-{{ iid }}" class="badge">{{ iid[:12] }}…</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if hs.mitre_techniques %}
+    <div style="margin-top:.8rem">
+      <span class="lbl">MITRE</span><br>
+      <div style="margin-top:.4rem">
+        {% for t in hs.mitre_techniques %}
+        <a href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/" target="_blank" rel="noopener" class="badge">{{ t }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div id="narrative-result-{{ loop.index }}" class="ai-block" style="display:none;margin-top:1rem"></div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function nEl(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+async function generateNarrative(btn) {
+  var idx = btn.dataset.idx;
+  var victimIp = btn.dataset.ip;
+  var result = document.getElementById('narrative-result-' + idx);
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  result.style.display = 'block';
+  result.textContent = '';
+  result.appendChild(nEl('p', 'note', 'AI is building the attack narrative locally…'));
+
+  try {
+    var response = await fetch('/host-summary', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({victim_ip: victimIp})
+    });
+    var ctype = response.headers.get('content-type') || '';
+    if (ctype.indexOf('application/json') === -1) {
+      throw new Error('Server returned HTTP ' + response.status +
+        (response.status === 404 ? ' — the /host-summary route was not found' : ' instead of JSON'));
+    }
+    var data = await response.json();
+    result.textContent = '';
+
+    if (data.error) {
+      var p = nEl('p', 'alert err', data.error);
+      p.setAttribute('role', 'alert');
+      result.appendChild(p);
+    } else {
+      result.appendChild(nEl('h4', '', 'Attack narrative'));
+      result.appendChild(nEl('p', 'summary', data.narrative));
+
+      var facts = nEl('div', 'facts');
+      var stage = nEl('span'); stage.appendChild(nEl('b', '', 'Attack stage ')); stage.appendChild(document.createTextNode(data.attack_stage));
+      var conf = nEl('span'); conf.appendChild(nEl('b', '', 'Confidence '));
+      var confVal = nEl('span', data.confidence === 'high' ? 'sev-low' : data.confidence === 'medium' ? 'sev-medium' : 'note', data.confidence);
+      conf.appendChild(confVal);
+      facts.appendChild(stage); facts.appendChild(conf);
+      result.appendChild(facts);
+
+      var actionBox = nEl('div', 'alert warn');
+      actionBox.appendChild(nEl('strong', '', 'Priority action: '));
+      actionBox.appendChild(document.createTextNode(data.priority_action));
+      result.appendChild(actionBox);
+
+      result.appendChild(nEl('p', 'note', data.incident_count + ' incidents · ' + data.duration_minutes + ' minutes · all processing local'));
+    }
+  } catch (e) {
+    result.textContent = '';
+    var errp = nEl('p', 'alert err', 'Connection error: ' + e.message);
+    errp.setAttribute('role', 'alert');
+    result.appendChild(errp);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Regenerate narrative ↻';
+}
+</script>
+{% endif %}
 
 <div class="pad"></div>
 
@@ -535,7 +653,11 @@ async function send(question) {
     typing.remove();
     if (data.error) {
       status.className = 'status err';
-      status.textContent = data.error;
+      if (data.session_expired) {
+        status.textContent = '⚠️ Session expired. Please re-upload your file to continue the chat.';
+      } else {
+        status.textContent = data.error;
+      }
     } else {
       appendMessage('ai', data.answer);
       status.className = 'status ok';
