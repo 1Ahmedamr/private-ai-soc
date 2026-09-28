@@ -61,7 +61,7 @@ def _extract_victim_ip(incident) -> Optional[str]:
     # Check events for destination IPs (victim)
     dst_ips = []
     for event in incident.events[:20]:
-        if event.dst_ip and not event.dst_ip.startswith("192.168.") is False:
+        if event.dst_ip and not event.dst_ip.startswith("192.168."):
             dst_ips.append(event.dst_ip)
         elif event.host:
             return event.host

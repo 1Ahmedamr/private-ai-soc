@@ -45,8 +45,8 @@ FIELD_MAP: dict = {
     # Process execution (Sysmon / Windows 4688)
     "Image": "process",
     "CommandLine": "command",
-    "ParentImage": None,          # not captured yet - will never match
-    "Hashes": None,               # not captured yet - will never match
+    "ParentImage": "parent_process",
+    "Hashes": "file_hash",
 
     # Generic
     "EventType": "event_type",
