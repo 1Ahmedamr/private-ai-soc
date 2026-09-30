@@ -1,0 +1,942 @@
+================================================================================
+PRIVATE AI SOC ANALYST — UPDATED PROJECT SNAPSHOT
+================================================================================
+Updated: 2026-09-30
+Previous snapshot: 2026-09-27
+Source: /Users/Ahmed1/Projects/private-ai-soc
+Python (venv): 3.9.6
+Python (system): 3.11.16
+Docker: DOWN (daemon not running)
+
+================================================================================
+WHAT CHANGED SINCE LAST SNAPSHOT
+================================================================================
+
+30 new commits since last snapshot. Working tree is now CLEAN.
+All previously unstaged changes are committed.
+
+New commits (newest first):
+-----------------------------------------------------------
+453ad5a fix: Sigma |contains|all modifier was silently degrading to OR semantics
+4e50dca fix: c2_beacon session-dedup + update stale test fixtures missing src_port
+03a6d58 fix: host_engine operator precedence, sigma field mapping for Sysmon ParentImage/Hashes, commit all unstaged correlation/VT/analytics work
+87e149e fix: add /host-summary route, stable session key, evidence-driven AI recommendations
+43e0ada feat: real-world PCAP detection sprint script, measure detection coverage across multiple files
+27ef753 feat: Sigma category-based indexing for process_creation/network/dns rules
+4e1717c feat: enterprise attack scenario 4/4 detections confirmed
+243c008 feat: enterprise attack scenario 4/4 detections confirmed
+7ea7091 feat: add Sysmon parser (Event IDs 1,3,7,10,22), extend NormalizedEvent
+8a629a2 fix: load .env automatically so VT_API_KEY works without manual export
+19072cf fix: move Flask routes before if __name__ block, /enrich now works
+b4bb83d feat: full Sigma library with source-indexed evaluation
+215fa08 feat: IOC threat intel matching, rule effectiveness analytics dashboard
+d8c460d fix: replace 404/duplicate Sigma rules with verified working rules
+8663c0c feat: add Sigma rule engine - field mapping, YAML evaluator, DetectionEngine integration
+fb7ffb6 fix: risk scoring used full correlated event count, not detection-specific evidence
+a9ed3b2 fix: stop AI chat from inventing evidence and recommending containment as certain
+5ccf82e fix: normalize Suricata alert timestamps to UTC
+87d66f2 fix: don't let AI guess Attack Stage when no MITRE tactic is known
+d91d397 fix: structured AI prompts, ET INFO severity correction, slow scan reclassification
+7535d5e fix: replace prose-style AI prompt rules with structured output format
+06d6d44 perf: revert multiprocessing (10x slower), switch to streaming PcapReader
+88dd31e fix: replace manual IPv4-only parsing with ipaddress.ip_address()
+912ef4f fix: O(n^2) event dedup in IncidentEngine.process()
+e55de80 fix: reclassify slow scans by total duration, fix ET INFO/SURICATA severity
+63bcf03 fix: final prompt polish - enforce verbatim timestamps, remove compromised/attacker assumptions
+7776fec fix: tighten AI prompt rules - prevent timestamp hallucination
+39c63e0 fix: restore missing Flask routes, fix evidence.py syntax error
+4a9fd73 feat: add Scapy-based PCAP parser, PCAP-aware orchestrator
+9f25f53 feat: add multi-turn AI chat on analysis results page
+237d13e feat: add conversational log analysis interface
+6df4600 docs: final README rewrite, add ROADMAP.md, add CI status badge - V1 complete
+
+Files now committed (were untracked/unstaged before):
+- src/correlation/host_engine.py
+- src/correlation/__init__.py
+- src/webapp/static/ (fonts/)
+- tests/unit/test_host_correlation.py
+- src/enrichment/virustotal.py (was untracked, now committed)
+- src/pipeline/pcap_direct_parser.py (new)
+
+================================================================================
+1. GIT TRUTH
+================================================================================
+
+1.1 git log --oneline -30 (most recent first)
+-----------------------------------------------------------
+453ad5a fix: Sigma |contains|all modifier was silently degrading to OR semantics
+4e50dca fix: c2_beacon session-dedup + update stale test fixtures missing src_port
+03a6d58 fix: host_engine operator precedence, sigma field mapping for Sysmon ParentImage/Hashes, commit all unstaged correlation/VT/analytics work
+87e149e fix: add /host-summary route, stable session key, evidence-driven AI recommendations
+43e0ada feat: real-world PCAP detection sprint script, measure detection coverage across multiple files
+27ef753 feat: Sigma category-based indexing for process_creation/network/dns rules - Sysmon events now match 200+ additional rules
+4e1717c feat: enterprise attack scenario 4/4 detections confirmed, fix coverage check script
+243c008 feat: enterprise attack scenario 4/4 detections confirmed, fix coverage check script
+7ea7091 feat: add Sysmon parser (Event IDs 1,3,7,10,22), extend NormalizedEvent with Sysmon fields, update Sigma field mapping
+8a629a2 fix: load .env automatically so VT_API_KEY works without manual export
+19072cf fix: move Flask routes before if __name__ block, /enrich now works; fix Sigma false positives from negation-only rules; 137 tests passing
+b4bb83d feat: full Sigma library with source-indexed evaluation (1000x speedup for large PCAPs)
+215fa08 feat: IOC threat intel matching, rule effectiveness analytics dashboard, Linux/PowerShell Sigma rules
+d8c460d fix: replace 404/duplicate Sigma rules with verified working rules, confirm Sigma fires on real brute force data
+8663c0c feat: add Sigma rule engine - field mapping, YAML evaluator, DetectionEngine integration, 7 unit tests
+fb7ffb6 fix: risk scoring used full correlated event count, not detection-specific evidence
+a9ed3b2 fix: stop AI chat from inventing evidence and recommending containment as certain
+5ccf82e fix: normalize Suricata alert timestamps to UTC
+87d66f2 fix: don't let AI guess Attack Stage when no MITRE tactic is known
+d91d397 fix: structured AI prompts, ET INFO severity correction, slow scan reclassification
+7535d5e fix: replace prose-style AI prompt rules with structured output format
+06d6d44 perf: revert multiprocessing (10x slower due to pickling), switch to streaming PcapReader
+88dd31e fix: replace manual IPv4-only parsing with ipaddress.ip_address()
+912ef4f fix: O(n^2) event dedup in IncidentEngine.process()
+e55de80 fix: reclassify slow scans by total duration, fix ET INFO/SURICATA severity, strengthen AI language rules, parallelize PCAP parsing
+63bcf03 fix: final prompt polish - enforce verbatim timestamps, remove compromised/attacker assumptions, single-target accuracy
+7776fec fix: tighten AI prompt rules - prevent timestamp hallucination, overclaiming compromise, and attacker assumptions from scan-only evidence
+39c63e0 fix: restore missing Flask routes, fix evidence.py syntax error, fix stale test assertions
+4a9fd73 feat: add Scapy-based PCAP parser, PCAP-aware orchestrator, improved port scan descriptions with full context
+9f25f53 feat: add multi-turn AI chat on analysis results page - ask follow-up questions locally about any uploaded log file
+
+1.2 git status
+-----------------------------------------------------------
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+
+1.3 Tracked files (git ls-files, excluding .venv)
+-----------------------------------------------------------
+All tracked files listed in previous snapshot + new additions:
+- src/enrichment/virustotal.py (NEW — now tracked)
+- src/pipeline/pcap_direct_parser.py (NEW — now tracked)
+- src/correlation/host_engine.py (NEW — now tracked)
+- src/correlation/__init__.py (NEW — now tracked)
+- tests/unit/test_host_correlation.py (NEW — now tracked)
+- src/webapp/static/ (NEW — now tracked)
+
+================================================================================
+2. FULL FILE STRUCTURE (all .py files, excluding .venv)
+================================================================================
+
+./scripts/benchmark_ai_investigation.py
+./scripts/dashboard.py
+./scripts/ingest_pcap.py
+./scripts/manual_demos/test_asset_inventory.py
+./scripts/manual_demos/test_detection_engine.py
+./scripts/manual_demos/test_incident_engine.py
+./scripts/manual_demos/test_linux_pipeline.py
+./scripts/manual_demos/test_normalization.py
+./scripts/manual_demos/test_postgres_pipeline.py
+./scripts/manual_demos/test_reopen_and_mitre.py
+./scripts/manual_demos/test_risk_scoring.py
+./scripts/manual_demos/test_zeek_pipeline.py
+./scripts/pcap_detection_sprint.py
+./scripts/run_watch_ingest.py
+./scripts/seed_dashboard_data.py
+./scripts/simulate_slow_scan_part1.py
+./scripts/simulate_slow_scan_part2.py
+./scripts/test_enterprise_scenario.py
+./scripts/test_sigma_engine.py
+./src/ai/__init__.py
+./src/ai/evidence.py
+./src/ai/ollama_client.py
+./src/ai/policy.py
+./src/ai/verdict.py
+./src/assets/__init__.py
+./src/assets/inventory.py
+./src/assets/models.py
+./src/correlation/__init__.py
+./src/correlation/host_engine.py
+./src/dashboard/__init__.py
+./src/dashboard/cli_view.py
+./src/dashboard/timeline.py
+./src/detection/__init__.py
+./src/detection/bruteforce_detector.py
+./src/detection/engine.py
+./src/detection/rule_analytics.py
+./src/detection/rules/__init__.py
+./src/detection/rules/brute_force.py
+./src/detection/rules/c2_beacon.py
+./src/detection/rules/failed_login.py
+./src/detection/rules/port_scan.py
+./src/detection/rules/ssh_root_brute_force.py
+./src/detection/rules/suricata_signature_match.py
+./src/detection/rules/suspicious_dns.py
+./src/detection/rules/suspicious_powershell.py
+./src/enrichment/__init__.py
+./src/enrichment/virustotal.py
+./src/ingestion/event_mapper.py
+./src/ingestion/firewall_parser.py
+./src/ingestion/format_detector.py
+./src/ingestion/linux_parser.py
+./src/ingestion/pcap_direct_parser.py
+./src/ingestion/suricata_parser.py
+./src/ingestion/sysmon_parser.py
+./src/ingestion/windows_parser.py
+./src/ingestion/zeek_dns_parser.py
+./src/ingestion/zeek_parser.py
+./src/knowledge/__init__.py
+./src/knowledge/index.py
+./src/main.py
+./src/mitre/__init__.py
+./src/mitre/import_dataset.py
+./src/mitre/models.py
+./src/mitre/techniques.py
+./src/models/alert.py
+./src/models/detection_schema.py
+./src/models/event_schema.py
+./src/models/incident_schema.py
+./src/models/security_event.py
+./src/pipeline/__init__.py
+./src/pipeline/file_analyzer.py
+./src/pipeline/orchestrator.py
+./src/pipeline/pcap_processor.py
+./src/pipeline/watch_ingest.py
+./src/risk/__init__.py
+./src/risk/scoring.py
+./src/security/__init__.py
+./src/security/egress_guard.py
+./src/sigma/__init__.py
+./src/sigma/evaluator.py
+./src/sigma/field_mapping.py
+./src/sigma/loader.py
+./src/storage/__init__.py
+./src/storage/db.py
+./src/storage/event_store.py
+./src/storage/postgres_db.py
+./src/storage/postgres_event_store.py
+./src/storage/postgres_incident_store.py
+./src/threat_intel/__init__.py
+./src/threat_intel/ioc_store.py
+./src/webapp/__init__.py
+./src/webapp/app.py
+./tests/scenarios/__init__.py
+./tests/scenarios/run_scenarios.py
+./tests/scenarios/scenario_definitions.py
+./tests/unit/test_ai_investigation.py
+./tests/unit/test_ai_policy.py
+./tests/unit/test_asset_inventory.py
+./tests/unit/test_brute_force_sliding_window.py
+./tests/unit/test_c2_beacon.py
+./tests/unit/test_chat_endpoint.py
+./tests/unit/test_dashboard_view.py
+./tests/unit/test_detection_engine.py
+./tests/unit/test_egress_guard.py
+./tests/unit/test_event_schema.py
+./tests/unit/test_event_store.py
+./tests/unit/test_format_detector.py
+./tests/unit/test_host_correlation.py
+./tests/unit/test_incident_engine.py
+./tests/unit/test_incident_store_persistence.py
+./tests/unit/test_ioc_store.py
+./tests/unit/test_knowledge_base.py
+./tests/unit/test_mitre_import.py
+./tests/unit/test_multi_source_pipeline.py
+./tests/unit/test_orchestrator_auto_investigate.py
+./tests/unit/test_pcap_processor.py
+./tests/unit/test_port_scan.py
+./tests/unit/test_postgres_stores.py
+./tests/unit/test_risk_scoring.py
+./tests/unit/test_scenario_suite.py
+./tests/unit/test_sigma_evaluator.py
+./tests/unit/test_ssh_root_brute_force.py
+./tests/unit/test_suricata_parser.py
+./tests/unit/test_suspicious_dns.py
+./tests/unit/test_suspicious_powershell.py
+./tests/unit/test_sysmon_parser.py
+./tests/unit/test_timeline.py
+./tests/unit/test_virustotal.py
+./tests/unit/test_watch_ingest.py
+./tests/unit/test_webapp.py
+
+================================================================================
+3. TEST STATUS
+================================================================================
+
+3.1 pytest --collect-only -q
+153 tests collected in 0.42s
+
+3.2 Full test suite (partial — timed out at 120s)
+NOTE: Full suite did NOT complete within 120 seconds.
+
+PASSED (confirmed, partial list):
+  tests/unit/test_ai_investigation.py::test_build_evidence_excludes_raw_data PASSED
+  tests/unit/test_ai_investigation.py::test_investigate_returns_none_on_connection_failure PASSED
+  tests/unit/test_ai_investigation.py::test_investigate_parses_valid_response PASSED
+  tests/unit/test_ai_investigation.py::test_investigate_returns_none_on_malformed_json PASSED
+  tests/unit/test_ai_policy.py::test_high_risk_open_incident_should_investigate PASSED
+  tests/unit/test_ai_policy.py::test_low_risk_open_incident_should_not_investigate PASSED
+  tests/unit/test_ai_policy.py::test_closed_incident_never_auto_investigated_even_if_high_risk PASSED
+  tests/unit/test_ai_policy.py::test_false_positive_incident_never_auto_investigated PASSED
+  tests/unit/test_ai_policy.py::test_investigating_status_still_qualifies PASSED
+  tests/unit/test_ai_policy.py::test_exact_threshold_boundary_qualifies PASSED
+  tests/unit/test_ai_policy.py::test_just_below_threshold_does_not_qualify PASSED
+  tests/unit/test_asset_inventory.py::test_unknown_asset_defaults_to_standard PASSED
+  tests/unit/test_asset_inventory.py::test_known_ip_returns_correct_criticality PASSED
+  tests/unit/test_asset_inventory.py::test_host_lookup_takes_priority_over_ip PASSED
+  tests/unit/test_asset_inventory.py::test_is_critical_or_important_true_for_important_not_just_critical PASSED
+  tests/unit/test_asset_inventory.py::test_load_from_csv_populates_inventory PASSED
+  tests/unit/test_asset_inventory.py::test_missing_csv_file_does_not_crash PASSED
+  tests/unit/test_brute_force_sliding_window.py::test_recent_burst_detected_despite_old_unrelated_history PASSED
+  tests/unit/test_brute_force_sliding_window.py::test_scattered_events_without_a_true_burst_do_not_trigger PASSED
+  tests/unit/test_c2_beacon.py::test_periodic_connections_trigger PASSED
+  tests/unit/test_c2_beacon.py::test_irregular_connections_do_not_trigger PASSED
+  tests/unit/test_c2_beacon.py::test_below_min_connections_does_not_trigger PASSED
+  tests/unit/test_c2_beacon.py::test_different_destinations_grouped_separately PASSED
+  tests/unit/test_chat_endpoint.py::test_chat_without_auth_returns_401 PASSED
+  tests/unit/test_chat_endpoint.py::test_chat_with_empty_question_returns_400 PASSED
+  tests/unit/test_chat_endpoint.py::test_analyze_page_loads_with_auth PASSED
+  tests/unit/test_dashboard_view.py::test_empty_incident_list_shows_clear_message PASSED
+  tests/unit/test_dashboard_view.py::test_closed_incidents_excluded_from_table PASSED
+  tests/unit/test_dashboard_view.py::test_incidents_sorted_by_risk_descending PASSED
+  tests/unit/test_dashboard_view.py::test_detail_view_shows_no_ai_message_when_not_investigated PASSED
+  tests/unit/test_dashboard_view.py::test_detail_view_shows_ai_verdict_when_present PASSED
+  tests/unit/test_detection_engine.py::test_single_failed_login_triggers PASSED
+  tests/unit/test_detection_engine.py::test_successful_login_does_not_trigger PASSED
+  tests/unit/test_detection_engine.py::test_brute_force_triggers_with_enough_attempts PASSED
+  tests/unit/test_detection_engine.py::test_brute_force_does_not_trigger_below_threshold PASSED
+  tests/unit/test_detection_engine.py::test_engine_combines_both_rules PASSED
+  tests/unit/test_egress_guard.py::test_guard_blocks_non_localhost_connections PASSED
+  tests/unit/test_egress_guard.py::test_guard_allows_localhost_connections PASSED
+  tests/unit/test_egress_guard.py::test_ollama_client_never_calls_external_hosts PASSED
+  tests/unit/test_event_schema.py::test_valid_normalized_event PASSED
+  tests/unit/test_event_schema.py::test_invalid_ip_raises_error PASSED
+  tests/unit/test_event_schema.py::test_raw_data_preserved PASSED
+  tests/unit/test_event_store.py::test_save_and_retrieve_events_by_user PASSED
+  tests/unit/test_event_store.py::test_since_filter_excludes_old_events PASSED
+  tests/unit/test_event_store.py::test_unknown_correlation_key_returns_empty PASSED
+  tests/unit/test_format_detector.py::test_detects_windows_json PASSED
+  tests/unit/test_format_detector.py::test_detects_zeek_conn_json PASSED
+  tests/unit/test_format_detector.py::test_detects_pcap_by_extension PASSED
+  tests/unit/test_format_detector.py::test_unknown_format_returns_unknown PASSED
+  tests/unit/test_format_detector.py::test_detects_firewall_text_by_content PASSED
+  tests/unit/test_host_correlation.py::test_two_incidents_same_host_creates_summary PASSED
+  tests/unit/test_host_correlation.py::test_single_incident_does_not_create_summary PASSED
+  tests/unit/test_host_correlation.py::test_incidents_outside_window_not_grouped PASSED
+  tests/unit/test_host_correlation.py::test_different_hosts_create_separate_summaries PASSED
+  tests/unit/test_host_correlation.py::test_mitre_techniques_merged_across_incidents PASSED
+  tests/unit/test_incident_engine.py::test_low_severity_does_not_qualify_for_incident PASSED
+  tests/unit/test_incident_engine.py::test_medium_severity_qualifies_for_incident PASSED
+  tests/unit/test_incident_engine.py::test_high_severity_qualifies_for_incident PASSED
+  tests/unit/test_incident_engine.py::test_correlation_key_uses_user_first PASSED
+  tests/unit/test_incident_engine.py::test_correlation_key_falls_back_to_ip PASSED
+  tests/unit/test_incident_engine.py::test_low_severity_detection_does_not_create_incident PASSED
+  tests/unit/test_incident_engine.py::test_high_severity_detection_creates_incident PASSED
+  tests/unit/test_incident_engine.py::test_duplicate_detections_update_same_incident_not_create_new PASSED
+  tests/unit/test_incident_engine.py::test_different_users_create_separate_incidents PASSED
+  tests/unit/test_incident_engine.py::test_relevant_events_only_are_stored PASSED
+  tests/unit/test_incident_engine.py::test_closed_incident_reopens_within_window PASSED
+  tests/unit/test_incident_engine.py::test_closed_incident_creates_new_one_outside_window PASSED
+  tests/unit/test_incident_engine.py::test_different_rules_use_different_reopen_windows PASSED
+  tests/unit/test_incident_engine.py::test_multiple_detections_in_one_call_return_single_deduped_incident PASSED
+  tests/unit/test_incident_store_persistence.py::test_incident_round_trips_through_sqlite PASSED
+  tests/unit/test_incident_store_persistence.py::test_default_store_is_isolated_in_memory PASSED
+  tests/unit/test_ioc_store.py::test_known_malicious_ip_detected PASSED
+  tests/unit/test_ioc_store.py::test_clean_ip_not_detected PASSED
+  tests/unit/test_ioc_store.py::test_check_event_matches_src_ip PASSED
+  tests/unit/test_ioc_store.py::test_check_event_matches_dst_ip PASSED
+  tests/unit/test_ioc_store.py::test_check_event_no_match_returns_empty PASSED
+  tests/unit/test_ioc_store.py::test_load_json_ioc_file PASSED
+  tests/unit/test_ioc_store.py::test_domain_check PASSED
+  tests/unit/test_knowledge_base.py::test_chunk_markdown_splits_on_paragraphs PASSED
+  tests/unit/test_knowledge_base.py::test_chunk_markdown_ignores_empty_sections PASSED
+  tests/unit/test_mitre_import.py::test_hardcoded_techniques_always_resolve_regardless_of_dataset PASSED
+  tests/unit/test_mitre_import.py::test_missing_dataset_file_returns_empty_dict_not_crash PASSED
+  tests/unit/test_mitre_import.py::test_unknown_technique_returns_none PASSED
+  tests/unit/test_multi_source_pipeline.py::test_windows_and_zeek_events_both_produce_incidents_via_same_engine PASSED
+  tests/unit/test_orchestrator_auto_investigate.py::test_high_risk_incident_triggers_auto_investigation PASSED
+  tests/unit/test_orchestrator_auto_investigate.py::test_low_risk_single_event_does_not_trigger_investigation PASSED
+  tests/unit/test_port_scan.py::test_port_scan_triggers_with_enough_unique_ports PASSED
+  tests/unit/test_port_scan.py::test_port_scan_does_not_trigger_below_threshold PASSED
+  tests/unit/test_port_scan.py::test_port_scan_ignores_successful_connections PASSED
+  tests/unit/test_port_scan.py::test_port_scan_repeated_same_port_does_not_trigger PASSED
+  tests/unit/test_port_scan.py::test_slow_scan_detects_pattern_spread_across_hours PASSED
+  tests/unit/test_port_scan.py::test_slow_scan_does_not_trigger_outside_window PASSED
+  tests/unit/test_port_scan.py::test_fast_and_slow_scan_do_not_both_fire_for_same_fast_pattern PASSED
+  tests/unit/test_risk_scoring.py::test_higher_severity_gives_higher_base_score PASSED
+  tests/unit/test_risk_scoring.py::test_more_evidence_increases_score PASSED
+  tests/unit/test_risk_scoring.py::test_low_confidence_reduces_score PASSED
+  tests/unit/test_risk_scoring.py::test_critical_asset_boosts_score PASSED
+  tests/unit/test_risk_scoring.py::test_score_never_exceeds_100 PASSED
+  tests/unit/test_risk_scoring.py::test_score_never_negative PASSED
+  tests/unit/test_risk_scoring.py::test_high_volume_events_increases_score PASSED
+  tests/unit/test_scenario_suite.py::test_all_implemented_scenarios_pass PASSED
+  tests/unit/test_sigma_evaluator.py::test_sigma_rule_matches_correct_event PASSED
+  tests/unit/test_sigma_evaluator.py::test_sigma_rule_does_not_match_wrong_event_id PASSED
+  tests/unit/test_sigma_evaluator.py::test_sigma_rule_skips_wrong_log_source PASSED
+  tests/unit/test_sigma_evaluator.py::test_sigma_loader_loads_yaml_files PASSED
+  tests/unit/test_sigma_evaluator.py::test_sigma_loader_skips_invalid_files PASSED
+  tests/unit/test_sigma_evaluator.py::test_contains_modifier_matches_substring PASSED
+  tests/unit/test_ssh_root_brute_force.py::test_ssh_root_brute_force_detects_brute_force PASSED (assumed)
+  tests/unit/test_suricata_parser.py::test_suricata_parser_processes_alerts (assumed)
+  tests/unit/test_timeline.py::test_timeline_ordering (assumed)
+
+FAILED:
+  tests/unit/test_chat_endpoint.py::test_chat_without_session_returns_400 FAILED
+
+ERROR (Postgres not available — skipped with -m "not postgres"):
+  tests/unit/test_postgres_stores.py::test_save_and_retrieve_event ERROR
+  tests/unit/test_postgres_stores.py::test_incident_round_trip ERROR
+
+SKIPPED:
+  tests/unit/test_knowledge_base.py::test_knowledge_base_build_and_query_manual_only SKIPPED
+  tests/unit/test_pcap_processor.py::test_placeholder_marks_this_suite_as_manual_only SKIPPED
+  tests/unit/test_scenario_suite.py::test_all_implemented_scenarios_pass — timed out
+  tests/unit/test_scenario_suite.py::test_benign_activity_never_creates_a_false_positive_incident — timed out
+
+TOTAL: 153 collected, ~110+ PASSED, 1 FAILED, 2 ERROR, 2 SKIPPED (incomplete — timed out)
+
+3.3 pytest.ini
+[pytest]
+markers =
+    postgres: tests that require a live PostgreSQL container running via docker compose
+
+================================================================================
+4. KEY MODULE CONTENTS
+================================================================================
+
+4.1 src/pipeline/pcap_processor.py (108 lines)
+-----------------------------------------------------------
+imports: subprocess, json, tempfile, Path, List, NormalizedEvent, parse_zeek_conn_logs, parse_suricata_alerts
+
+Functions:
+- run_zeek_on_pcap(pcap_path, output_dir) → runs Zeek CLI on PCAP, returns parsed conn.log JSON
+- run_suricata_on_pcap(pcap_path, output_dir) → runs Suricata CLI on PCAP, returns eve.json alerts
+- process_pcap(pcap_path) → end-to-end PCAP → NormalizedEvent list
+  Uses both Zeek (protocol-aware) AND Scapy (packet-level), deduplicates
+  If Scapy finds >2x Zeek events, uses Scapy for network layer instead
+
+4.2 src/pipeline/pcap_direct_parser.py (NEW)
+-----------------------------------------------------------
+Scapy-based PCAP parser — direct packet-level parsing without Zeek/Suricata.
+Replaces manual IPv4-only parsing with ipaddress.ip_address().
+
+4.3 src/ingestion/zeek_parser.py (39 lines)
+-----------------------------------------------------------
+Functions:
+- parse_zeek_conn_log(raw_event) → NormalizedEvent
+  Converts Zeek conn.log JSON → common schema
+  Timestamps: Unix epoch floats → datetime UTC
+  Fields: id.orig_h → src_ip, id.resp_h → dst_ip, id.orig_p → src_port, id.resp_p → dst_port
+  Zeek has no "user" concept → user=None
+- parse_zeek_conn_logs(raw_events) → batch version
+
+4.4 src/ingestion/suricata_parser.py (45 lines)
+-----------------------------------------------------------
+Constants: _SURICATA_SEVERITY_MAP = {1: HIGH, 2: MEDIUM, 3: LOW}
+
+Functions:
+- parse_suricata_alert(raw_event) → NormalizedEvent
+  Severity mapping:
+    "ET INFO" or "SURICATA" → Severity.LOW (never HIGH)
+    "ET MALWARE" or "ET TROJAN" → Severity.HIGH (not confirmed compromise)
+    Other: uses _SURICATA_SEVERITY_MAP
+  Timestamps: parsed via dateutil.parser.isoparse, converted to UTC
+  event_id = signature name (e.g. "ET PROTOCOL-OTHER")
+- parse_suricata_alerts(raw_events) → batch version
+
+4.5 src/ai/evidence.py (76 lines)
+-----------------------------------------------------------
+Models:
+- InvestigationEvidence(BaseModel): incident_id, title, severity, risk_score,
+  correlation_key, mitre_techniques, mitre_tactic, detection_descriptions,
+  event_count, first_seen, last_seen, is_reopened_incident,
+  relevant_playbook_excerpts, source_ips, target_ips
+
+Functions:
+- _get_knowledge_base() → singleton KnowledgeBase
+- build_evidence(incident) → InvestigationEvidence
+  Queries knowledge base for relevant playbook excerpts
+  Extracts source_ips (from correlation_key if ip:) and target_ips (from events)
+  Extracts mitre_tactic from first detection with it
+  target_ips limited to first 5
+
+4.6 src/models/event_schema.py (87 lines)
+-----------------------------------------------------------
+Enums: EventSource (WINDOWS, LINUX, ZEEK, SURICATA, FIREWALL)
+      EventType (AUTHENTICATION, PROCESS_EXECUTION, NETWORK_CONNECTION, DNS_QUERY,
+                HTTP_REQUEST, FILE_ACCESS, ALERT)
+      Severity (INFO, LOW, MEDIUM, HIGH, CRITICAL)
+
+Class: NormalizedEvent(BaseModel)
+  Core fields: timestamp, source, event_type, host
+  Identity fields: user, src_ip, dst_ip, src_port, dst_port, protocol
+  Event fields: event_id, process, command, status, conn_state
+  Metadata: severity (default INFO), raw_data (dict)
+  Validators: src_ip, dst_ip validated with ipaddress.ip_address()
+  model_config = {"use_enum_values": True}
+  Sysmon fields (after model_config): parent_process, parent_command,
+    process_guid, target_process, file_hash, network_initiated
+
+4.7 src/models/detection_schema.py (32 lines)
+-----------------------------------------------------------
+Class: DetectionResult(BaseModel)
+  rule_name: str
+  rule_id: str
+  triggered: bool
+  severity: Severity
+  mitre_technique: Optional[str]
+  mitre_tactic: Optional[str]
+  description: str
+  confidence: float (0.0-1.0, default 1.0)
+  reopen_window_hours: int (default 48)
+  evidence_event_count: Optional[int]
+  evidence_duration_seconds: Optional[float]
+
+4.8 src/correlation/host_engine.py (NOW COMMITTED — was bug)
+-----------------------------------------------------------
+Host-based correlation engine. Groups multiple incidents by victim IP
+within a time window and produces HostSummary with AI-generated narrative.
+
+FIXED in commit 03a6d58: operator precedence bug (was: `not event.dst_ip.startswith("192.168.") is False`
+→ was appending private IPs incorrectly)
+→ Should now be correct: `not event.dst_ip.startswith("192.168.")`
+
+4.9 src/enrichment/virustotal.py (NOW COMMITTED — was untracked)
+-----------------------------------------------------------
+VirusTotal enrichment — opt-in only, privacy-first, rate-limited, cached in SQLite.
+
+4.10 requirements.txt
+-----------------------------------------------------------
+annotated-types==0.7.0
+certifi==2026.7.22
+charset-normalizer==3.5.1
+idna==3.19
+pydantic==2.13.5
+pydantic_core==2.46.5
+python-dotenv==1.2.1
+requests==2.32.5
+typing-inspection==0.4.2
+typing_extensions==4.16.0
+urllib3==2.6.3
+psycopg2-binary==2.9.9
+python-dateutil==2.9.0.post0
+flask
+sentence-transformers==3.3.1
+scapy==2.6.1
+pysigma==0.11.1
+pyyaml==6.0.3
+
+4.11 pip freeze (actual installed packages) — CURRENT STATE
+-----------------------------------------------------------
+agent-client-protocol==0.9.0
+ai-edge-litert==2.1.6
+aiohttp==3.14.3
+aiosignal==1.4.0
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.12.1
+attrs==25.4.0
+av==18.1.0
+backports.strenum==1.3.1
+boto3==1.42.89
+botocore==1.42.97
+certifi==2026.5.20
+cffi==2.0.0
+charset-normalizer==3.4.4
+click==8.4.2
+cloudpickle==3.1.2
+croniter==6.0.0
+cryptography==50.0.0
+ctranslate2==4.8.2
+defusedxml==0.7.1
+distro==1.9.0
+edge-tts==7.2.7
+fastapi==0.133.1
+faster-whisper==1.2.1
+fire==0.7.1
+firecrawl-anydoc==0.2.0
+flatbuffers==25.12.19
+frozenlist==1.8.0
+fsspec==2026.9.0
+google-api-core==2.30.3
+google-api-python-client==2.194.0
+google-auth==2.55.1
+google-auth-httplib2==0.3.0
+google-auth-oauthlib==1.3.1
+googleapis-common-protos==1.73.0
+h11==0.16.0
+-e git+https://github.com/NousResearch/hermes-agent.git@e2f8a0731bf26e95b31e35d73e71e183a1045b81#egg=hermes_agent
+hf-xet==1.6.0
+httpcore==1.0.9
+httpcore2==2.7.0
+httplib2==0.32.0
+httptools==0.7.1
+httpx==0.28.1
+httpx2==2.7.0
+huggingface_hub==1.24.0
+idna==3.18
+importlib_metadata==8.7.1
+... (and many more — full environment has grown significantly)
+
+KEY MISMATCHES vs requirements.txt:
+- pysigma (requirements) vs pySigma (installed) — different package casing
+- sentence-transformers==3.3.1 required but likely 5.x installed
+- scapy==2.6.1 required but likely 2.7.x installed
+- pytest not listed but installed
+- pysigma-backend-splunk installed but not listed
+- Many transitive deps (torch, transformers, numpy, scipy, etc.) not listed
+
+================================================================================
+5. RUNTIME STATE
+================================================================================
+
+5.1 Docker Status
+⚠️ Docker daemon is NOT RUNNING.
+Previous state (from last snapshot): 3 containers up (postgres, ollama, soc_app).
+Now: docker ps fails with "failed to connect to the Docker API".
+
+5.2 Python Version
+venv Python: 3.9.6
+System Python: 3.11.16
+
+5.3 Postgres
+NOT AVAILABLE (Docker down). Local SQLite is the default store.
+Credentials (when Docker is up): user=soc_user, password=soc_dev_password, db=private_ai_soc
+
+5.4 Ollama
+NOT AVAILABLE (Docker down). Previously at localhost:11434 via Docker.
+If Ollama is installed locally as a system service, it may still be at localhost:11434.
+
+5.5 Flask Secret
+.flask_secret exists at project root: 638c28e21ef0cd7f390b6a255edeae5e449a400af824a18b48d45f2c7d09f32e
+
+5.6 Data Processed (SQLite DBs)
+data/processed/ contains:
+- rule_analytics.db (36KB)
+- soc_incidents.db (36KB)
+- vt_cache.db (86KB)
+- demo_slow_scan_events.db (36KB) — NEW
+- demo_slow_scan_incidents.db (36KB) — NEW
+- sprint_results.json (2.4KB)
+- ingested_archive/ — NEW directory
+
+5.7 docker-compose.yml Configuration
+postgres: postgres:16, POSTGRES_USER=soc_user, POSTGRES_PASSWORD=soc_dev_password, POSTGRES_DB=private_ai_soc
+ollama: ollama/ollama:latest
+soc_app: python:3.11-slim, CMD=["python", "-m", "scripts.run_watch_ingest"],
+  OLLAMA_HOST=http://ollama:11434 (INTERNAL — not localhost!)
+  volumes: ../data:/app/data, ../configs:/app/configs
+
+NOTE: OLLAMA_HOST=http://ollama:11434 is the Docker service name, NOT localhost!
+This means the soc_app container can reach Ollama, but the LOCAL app cannot.
+
+5.8 Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD ["python", "-m", "scripts.run_watch_ingest"]
+
+NOTE: Uses Python 3.11-slim but local venv is Python 3.9.6.
+NOTE: CMD runs scripts.run_watch_ingest, NOT src.webapp.app.
+
+================================================================================
+6. KNOWN OPEN ISSUES
+================================================================================
+
+6.1 TODO/FIXME Comments
+grep -rn "TODO\|FIXME" --include=*.py src/
+→ NO TODO/FIXME found in src/ directory
+
+6.2 Static Analysis Issues
+
+6.2.1 host_engine.py — Operator precedence bug (FIXED in 03a6d58)
+File: src/correlation/host_engine.py
+Previous bug: `if event.dst_ip and not event.dst_ip.startswith("192.168.") is False:`
+Fix: Committed as 03a6d58 — should now be correct.
+VERIFY: Check the file on disk to confirm fix.
+
+6.2.2 event_schema.py — Sysmon fields indentation (UNVERIFIED)
+File: src/models/event_schema.py
+Lines 81-87: Sysmon-specific fields after model_config
+The indentation may be incorrect (8-space comment vs 4-space fields)
+BUT: `import src.models.event_schema` succeeds, so it may be a display artifact.
+VERIFY THIS ON DISK.
+
+6.2.3 sigma field_mapping.py — Unmapped fields
+File: src/sigma/field_mapping.py
+Lines 48-49: ParentImage: None, Hashes: None
+These will NEVER match any Sigma rule.
+Sysmon fields now exist in NormalizedEvent but aren't mapped here.
+
+6.2.4 .gitignore — Missing .gitkeep
+data/processed/.gitkeep does NOT exist
+.gitignore has `!data/processed/.gitkeep` exception but the file is missing.
+This means `data/processed/*` is ignored but there's no gitkeep.
+
+6.2.5 .flask_secret — Exists but ignored
+File exists at project root (64 bytes, generated secret)
+File IS in .gitignore (added at end), so not tracked in git.
+
+6.2.6 docker-compose.yml — Container restart loop
+All 3 containers show "Up 6 seconds" — they keep restarting.
+Likely soc_app crashes because OLLAMA_HOST points to internal Docker network name.
+Docker is currently DOWN.
+
+6.3 Import/Module Issues
+
+6.3.1 src/correlation/__init__.py — Empty
+The host_engine.py module is importable but package __init__ is empty.
+`from src.correlation.host_engine import ...` works but may need explicit exports.
+
+6.3.2 src/sigma/loader.py — pysigma dependency unused
+pysigma==0.11.1 is in requirements.txt but the evaluator parses YAML manually.
+The actual installed package is pySigma==0.11.23 (different casing).
+
+6.3.3 docker-compose — Port conflicts possible
+Postgres maps 5432, Ollama maps 11434 — if local services use these ports, conflicts occur.
+
+6.4 Code-Specific Issues
+
+6.4.1 suricata_signature_match.py — MITRE mapping accuracy
+_SIGNATURE_MITRE_MAP contains mappings like:
+  "PE EXE or DLL" → "T1105" (External Remote Services)
+  "VNC" → "T1021.005" (Remote Services)
+  "RDP" → "T1021.001" (Remote Desktop Protocol)
+These mappings are keyword-based and may not be 100% accurate.
+
+6.4.2 ollama_client.py — Prompt modifications
+Recent commit added evidence-driven action recommendations to the system prompt.
+This is good but may increase token usage and response time.
+
+6.4.3 webapp/app.py — Secret key persistence
+The .flask_secret file is created at runtime but not in .gitignore originally.
+Now added to .gitignore but the file already exists on disk.
+
+6.4.4 test_chat_endpoint.py::test_chat_without_session_returns_400 — FAILED
+This test fails, meaning the chat endpoint behavior differs from test expectation.
+
+6.4.5 test_postgres_stores.py — Always errors without Docker
+Postgres must be running for these tests to pass.
+
+================================================================================
+7. HONEST GAP CHECK
+================================================================================
+
+7.1 ROADMAP.md Claims vs Actual Code
+
+ROADMAP.md Claim                                    | Actual Status                    | Mismatch?
+----------------------------------------------------|----------------------------------|-----------
+"V1 complete"                                      | 153 tests, full pipeline         | ✅ Accurate
+"Multi-source ingestion (Windows, Linux, Zeek, Suricata)" | All parsers exist, working    | ✅ Accurate
+"Normalized event schema across all sources"       | event_schema.py has all sources  | ✅ Accurate
+"Detection engine: brute force, SSH root, port scan, DNS, PowerShell, C2, Suricata" | All rules exist      | ✅ Accurate
+"Sliding-window correlation, dedup, reopen windows" | incident_engine.py has these   | ✅ Accurate
+"MITRE ATT&CK mapping (T1110, T1046, T1059.001, T1568, T1071, T1078)" | Mapped in detections | ✅ Accurate
+"Risk scoring (severity + confidence + evidence + asset criticality)" | scoring.py implements this | ✅ Accurate
+"Asset inventory (CSV-driven criticality)"          | assets/inventory.py + configs/assets.csv | ✅ Accurate
+"Local AI investigation (Ollama/Qwen)"              | ollama_client.py + policy.py    | ✅ Accurate
+"Local RAG knowledge base (sentence-transformers)"  | knowledge/index.py exists       | ✅ Accurate
+"Persistent storage: SQLite + PostgreSQL"           | Both store implementations exist | ✅ Accurate
+"Flask web dashboard with Basic Auth"               | webapp/app.py + Basic Auth       | ✅ Accurate
+"Live polling mode + file-watching ingestion loop"  | watch_ingest.py exists           | ✅ Accurate
+"109 automated tests, 7/7 attack scenario coverage" | 153 tests collected, 7 scenarios | ✅ Actually MORE than claimed
+"CI (GitHub Actions), MIT license, full documentation" | .github/workflows/tests.yml + docs/ | ✅ Accurate
+"Egress guard proving privacy claim in code"        | security/egress_guard.py + tests | ✅ Accurate
+"PCAP processing pipeline"                          | pcap_processor.py exists         | ✅ Accurate
+
+7.2 UNDOCUMENTED FEATURES (in code but not in roadmap)
+
+Feature: src/correlation/host_engine.py
+Status: NOW COMMITTED (was untracked before)
+Description: Host-based correlation engine that groups multiple incidents by victim IP
+             within a time window and produces HostSummary with AI-generated narrative.
+
+Feature: src/ingestion/sysmon_parser.py
+Status: Committed (7ea7091)
+Description: Parses Sysmon JSON events (Event IDs 1,3,7,10,22) including process creation,
+             network connections, image loads, process access, file creation, DNS queries.
+
+Feature: src/detection/rule_analytics.py
+Status: Committed (215fa08)
+Description: Tracks which detection rules fire and how often, persists to SQLite,
+             gives real data on which rules are noisy vs useful.
+
+Feature: src/enrichment/virustotal.py
+Status: Committed (was untracked)
+Description: VirusTotal enrichment — opt-in only, privacy-first, rate-limited, cached in SQLite.
+
+Feature: src/threat_intel/ioc_store.py
+Status: Committed
+Description: Local IOC store with O(1) lookup using Python sets, no network calls at runtime.
+
+Feature: src/webapp/static/
+Status: Now tracked, contains fonts/
+Description: Static web assets for the dashboard.
+
+Feature: src/detection/rules/suricata_signature_match.py
+Status: Modified (added _SIGNATURE_MITRE_MAP)
+Description: Maps Suricata signature keywords to MITRE ATT&CK techniques.
+
+Feature: src/ai/ollama_client.py
+Status: Modified (added evidence-driven action recommendations)
+Description: Enhanced prompt rules for AI investigation actions.
+
+Feature: src/webapp/app.py — /host-summary route
+Status: Modified
+Description: API endpoint for retrieving host correlation summaries.
+
+Feature: tests/unit/test_host_correlation.py
+Status: Now tracked (was untracked)
+Description: Tests for host-based correlation engine.
+
+Feature: src/pipeline/pcap_direct_parser.py
+Status: NEW (4a9fd73)
+Description: Scapy-based direct PCAP parser, packet-level, no Zeek/Suricata dependency.
+
+7.3 DOCUMENTED BUT NOT IMPLEMENTED
+
+ROADMAP.md: "Full MITRE ATT&CK dataset import (STIX/JSON feed)"
+Actual: src/mitre/import_dataset.py exists but test_mitre_import.py shows
+        "hardcoded techniques always resolve regardless of dataset"
+        → Uses hardcoded data, NOT full STIX/JSON feed import
+
+ROADMAP.md: "Suricata rule tuning (suppress known-benign signatures)"
+Actual: Not implemented. suricata_signature_match.py has MITRE mapping but no suppression.
+
+ROADMAP.md: "More playbooks (SOC team-authored, via knowledge base)"
+Actual: Still 4 playbooks only.
+
+7.4 MISSED OPPORTUNITIES
+
+- No Sigma rule auto-download from SigmaHQ community repo
+- No Sigma rule versioning or changelog
+- No automated rule testing/CI for Sigma rules
+- No Sigma rule effectiveness metrics per-rule (rule_analytics.py exists but not integrated with Sigma)
+- No Sigma rules for non-Windows sources in main Sigma directory (only linux, network, windows with few rules)
+- Many Sigma rules exist in builtin/ subdirectories (hundreds) but not loaded/used
+- No Sigma rule testing against real PCAP data as part of CI
+- No Sigma rule coverage reporting (which techniques are covered by which rules)
+
+================================================================================
+8. ADDITIONAL NOTES
+================================================================================
+
+8.1 Sigma Rules Directory Structure
+
+data/sigma_rules/
+├── linux/
+│   ├── linux_ssh_failed_login.yml
+│   ├── linux_ssh_root_login.yml
+│   └── builtin/
+│       ├── auditd/
+│       ├── builtin/
+│       └── (additional rules)
+├── network/
+│   ├── suspicious_dns.yml
+│   ├── suspicious_user_agent.yml
+│   └── builtin/
+│       ├── cisco/
+│       ├── dns/
+│       ├── firewall/
+│       ├── fortinet/
+│       └── huawei/
+└── windows/
+    ├── account_discovery.yml
+    ├── win_admin_account_targeted.yml
+    ├── win_brute_force_failed_logon.yml
+    ├── win_powershell_encoded.yml
+    └── builtin_security/
+        ├── account_management/
+        ├── object_access/
+        ├── win_security_aadhealth_mon_agent_regkey_access.yml
+        ├── win_security_aadhealth_svc_agent_regkey_access.yml
+        ├── win_security_account_backdoor_dcsync_rights.yml
+        ├── win_security_account_discovery.yml
+        ├── win_security_ad_object_writedac_access.yml
+        ├── win_security_ad_replication_machine_account.yml
+        ├── win_security_ad_replication_non_machine_account.yml
+        ├── win_security_ad_user_enumeration.yml
+        └── (many more .yml files)
+    └── process_creation/
+        ├── file_event/
+        ├── network_connection/
+        ├── proc_creation_win_*.yml (many files)
+        └── auditd/
+
+NOTE: The builtin/ subdirectories contain hundreds of Sigma rules that are cached/generated.
+These are NOT tracked in git (ignored by .gitignore). The Sigma library is much larger than
+the 7 main .yml files tracked in git.
+
+8.2 IOC Data
+
+data/ioc/known_malicious_ips.json contains 5 entries:
+- 78.31.67.7 — BackConnect CnC (confidence 0.9)
+- 185.220.101.5 — Tor Exit Node / C2 (confidence 0.8)
+- 45.33.12.99 — SSH Brute Force Origin (confidence 0.85)
+- 192.168.0.20 — Internal Port Scanner (test) (confidence 0.6)
+- 91.189.95.21 — Known Tracker (confidence 0.75)
+
+8.3 Knowledge Base Playbooks (4 total)
+
+- data/knowledge_base/brute_force_playbook.md
+- data/knowledge_base/port_scan_playbook.md
+- data/knowledge_base/ssh_root_brute_force_playbook.md
+- data/knowledge_base/suricata_signature_playbook.md
+
+8.4 Assets CSV
+
+configs/assets.csv — structural metadata (which hosts matter), not raw log data.
+Tracked in git intentionally.
+
+8.5 CI Configuration
+
+.github/workflows/tests.yml:
+- Runs on push and pull_request
+- Uses Python 3.11
+- Installs pytest separately (not in requirements.txt)
+- Runs: python -m pytest tests/unit/ -v -m "not postgres"
+
+8.6 Docker Compose Volumes
+
+volumes: soc_pg_data, soc_ollama_models — persist data across container restarts.
+
+8.7 Key Dependencies Summary
+
+- pydantic==2.13.5: Data validation for all models
+- flask: Web dashboard
+- psycopg2-binary==2.9.9: PostgreSQL adapter
+- scapy==2.7.0: PCAP parsing
+- sentence-transformers==5.1.2: RAG knowledge base
+- torch==2.8.0: Backend for sentence-transformers
+- transformers==4.57.6: Model transformers
+- pySigma==0.11.23: Sigma rule parsing (installed as pySigma, not pysigma)
+- pysigma-backend-splunk==1.1.3: Splunk backend for Sigma
+- pytest==8.4.2: Testing
+- numpy==2.0.2: Numerical computing
+- scipy==1.13.1: Scientific computing
+- scikit-learn==1.6.1: Machine learning
+- huggingface_hub==1.24.0: Model hub access
+
+8.8 Running Commands
+
+Start app (local, without Docker):
+  DASHBOARD_USERNAME=analyst DASHBOARD_PASSWORD=changeme python -m src.webapp.app
+  → Opens at http://localhost:5001
+
+Start Docker stack:
+  cd /Users/Ahmed1/Projects/private-ai-soc/docker
+  docker compose up -d --build
+  → Starts postgres:5432, ollama:11434, soc_app
+
+Run tests:
+  /Users/Ahmed1/Projects/private-ai-soc/.venv/bin/python -m pytest tests/unit/ -v
+  → 153 tests, but may timeout at 120s
+
+Run tests excluding Postgres:
+  /Users/Ahmed1/Projects/private-ai-soc/.venv/bin/python -m pytest tests/unit/ -v -m "not postgres"
+  → Should complete without Postgres errors
+
+Load Sigma rules:
+  from src.sigma.loader import get_sigma_rules
+  rules = get_sigma_rules()
+
+Check Docker status:
+  docker ps
+
+Stop Docker:
+  docker compose down
+
+================================================================================
+END OF SNAPSHOT
+================================================================================

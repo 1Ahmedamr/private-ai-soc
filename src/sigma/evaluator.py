@@ -210,10 +210,14 @@ class SigmaRule:
             matching = [v for k, v in selections.items() if k.startswith(prefix)]
             return any(matching)
 
-        # "not X"
-        if condition.lower().startswith("not "):
-            inner = condition[4:].strip()
-            return not self._eval_condition(inner, selections)
+        # Operator precedence: NOT binds tighter than AND/OR, so AND/OR
+        # must be checked FIRST here. Otherwise "not X and Y" (which
+        # should mean "(not X) and Y") gets misparsed as a single
+        # "not " prefix over the WHOLE remaining string - i.e. as
+        # "not (X and Y)" - flipping the result. Splitting on AND/OR
+        # first means each operand (e.g. "not X") is evaluated on its
+        # own, where the "not " branch below correctly applies only
+        # to that one term.
 
         # "X and Y"
         if " and " in condition.lower():
@@ -224,6 +228,11 @@ class SigmaRule:
         if " or " in condition.lower():
             parts = re.split(r"\bor\b", condition, flags=re.IGNORECASE)
             return any(self._eval_condition(p.strip(), selections) for p in parts)
+
+        # "not X" (single term only, no and/or left to split on)
+        if condition.lower().startswith("not "):
+            inner = condition[4:].strip()
+            return not self._eval_condition(inner, selections)
 
         # Simple named selection
         return selections.get(condition, False)
