@@ -77,10 +77,17 @@ class SigmaRule:
         A selection block is an AND of all its field conditions.
         """
         for field_expr, expected in selection_dict.items():
-            # Handle modifiers: field|contains, field|startswith, etc.
+            # Handle modifiers: field|contains, field|startswith, field|contains|all, etc.
             parts = field_expr.split("|")
             field_name = parts[0]
-            modifier = parts[1] if len(parts) > 1 else "exact"
+            value_modifiers = parts[1:] if len(parts) > 1 else ["exact"]
+
+            # "all" is a LIST modifier meaning every value in `expected` must
+            # match (AND), not just one (OR). It's combined with a value
+            # modifier like contains: "field|contains|all". Strip it out
+            # separately so it doesn't get mistaken for the match type.
+            require_all = "all" in value_modifiers
+            modifier = next((m for m in value_modifiers if m != "all"), "exact")
 
             actual = get_field_value(event, field_name)
             if actual is None:
@@ -88,35 +95,32 @@ class SigmaRule:
 
             actual_str = str(actual).lower() if actual is not None else ""
 
-            # Expected can be a single value or a list (OR within a field)
+            # Expected can be a single value or a list
             if not isinstance(expected, list):
                 expected = [expected]
 
-            matched_any = False
-            for exp_val in expected:
+            def _value_matches(exp_val) -> bool:
                 exp_str = str(exp_val).lower()
-                if modifier == "contains" and exp_str in actual_str:
-                    matched_any = True
-                    break
-                elif modifier == "startswith" and actual_str.startswith(exp_str):
-                    matched_any = True
-                    break
-                elif modifier == "endswith" and actual_str.endswith(exp_str):
-                    matched_any = True
-                    break
+                if modifier == "contains":
+                    return exp_str in actual_str
+                elif modifier == "startswith":
+                    return actual_str.startswith(exp_str)
+                elif modifier == "endswith":
+                    return actual_str.endswith(exp_str)
                 elif modifier == "re":
-                    if re.search(exp_str, actual_str, re.IGNORECASE):
-                        matched_any = True
-                        break
-                elif modifier in ("exact", "equals") and actual_str == exp_str:
-                    matched_any = True
-                    break
-                elif modifier == "exact" and actual_str == exp_str:
-                    matched_any = True
-                    break
-
-            if not matched_any:
+                    return bool(re.search(exp_str, actual_str, re.IGNORECASE))
+                elif modifier in ("exact", "equals"):
+                    return actual_str == exp_str
                 return False
+
+            if require_all:
+                # Every value in the list must match (Sigma's |all modifier)
+                if not all(_value_matches(v) for v in expected):
+                    return False
+            else:
+                # Any one value matching is enough (default Sigma list semantics)
+                if not any(_value_matches(v) for v in expected):
+                    return False
 
         return True
 
