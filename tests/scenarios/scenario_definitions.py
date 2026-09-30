@@ -59,7 +59,7 @@ def scenario_possible_c2():
         NormalizedEvent(
             timestamp=base + timedelta(seconds=i * 60),
             source=EventSource.ZEEK, event_type=EventType.NETWORK_CONNECTION,
-            src_ip="10.0.0.15", dst_ip="185.220.101.5",
+            src_ip="10.0.0.15", dst_ip="185.220.101.5", src_port=40000 + i,
             dst_port=443, protocol="tcp", conn_state="SF",
         )
         for i in range(8)

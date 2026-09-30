@@ -36,12 +36,14 @@ def parse_pcap_direct(pcap_path: str) -> List[NormalizedEvent]:
                     if pkt.haslayer(TCP):
                         tcp = pkt[TCP]
                         flags = int(tcp.flags)
-                        if flags == 2:
+                        if flags == 2:       # SYN only
                             conn_state = "S0"
-                        elif flags == 18:
+                        elif flags == 18:    # SYN+ACK
                             conn_state = "SF"
-                        elif flags & 4:
+                        elif flags & 4:      # RST bit set
                             conn_state = "REJ"
+                        elif flags & 16:     # ACK (established session)
+                            conn_state = "SF"
                         else:
                             conn_state = "unknown"
                         events.append(NormalizedEvent(

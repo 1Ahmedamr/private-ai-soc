@@ -143,8 +143,8 @@ class DetectionEngine:
                     rule_id=f"SOC-IOC-{match.ioc_type.upper()}-001",
                     triggered=True,
                     severity=severity,
-                    mitre_technique=None,
-                    mitre_tactic=None,
+                    mitre_technique="T1071",
+                    mitre_tactic="Command and Control",
                     description=(
                         f"IOC match: {match.ioc_type} '{match.ioc_value}' found in local "
                         f"threat intel feed '{match.source}'. "
