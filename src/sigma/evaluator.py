@@ -66,7 +66,11 @@ class SigmaRule:
             return False
         if product == "linux" and event.source != "linux":
             return False
-        if product == "zeek" and event.source not in ("zeek", "suricata"):
+        if product == "zeek" and event.source != "zeek":
+            # Zeek-authored Sigma rules use Zeek's own log field vocabulary
+            # (id.orig_h, query, Z, qtype_name, etc.) which Suricata events
+            # do not share - evaluating them against Suricata alerts caused
+            # confirmed false positives via coincidental field-name reuse.
             return False
 
         return True
@@ -109,6 +113,14 @@ class SigmaRule:
                     return actual_str.endswith(exp_str)
                 elif modifier == "re":
                     return bool(re.search(exp_str, actual_str, re.IGNORECASE))
+                elif modifier == "cidr":
+                    # Real IP-in-network check, not string matching -
+                    # "10.0.0.5" must not "contain" "10.0.0.0/8" as text.
+                    try:
+                        import ipaddress
+                        return ipaddress.ip_address(actual_str) in ipaddress.ip_network(exp_str, strict=False)
+                    except ValueError:
+                        return False
                 elif modifier in ("exact", "equals"):
                     return actual_str == exp_str
                 return False

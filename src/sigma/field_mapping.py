@@ -42,6 +42,17 @@ FIELD_MAP: dict = {
     "proto": "protocol",
     "protocol": "protocol",
 
+    # Zeek's own dotted field names (conn.log / dns.log)
+    "id.orig_h": "src_ip",
+    "id.resp_h": "dst_ip",
+    "id.orig_p": "src_port",
+    "id.resp_p": "dst_port",
+    # "query" is intentionally NOT mapped globally - it only makes sense
+    # for events from zeek_dns_parser specifically (which stores the DNS
+    # query string in event_id), not for Suricata/other event types where
+    # event_id means something else entirely. Handled via raw_data lookup
+    # instead, which only finds it on genuine Zeek dns.log-derived events.
+
     # Process execution (Sysmon / Windows 4688)
     "Image": "process",
     "CommandLine": "command",
@@ -74,9 +85,19 @@ def get_field_value(event: NormalizedEvent, sigma_field: str) -> Optional[Any]:
     not crash the entire evaluation pipeline. Missing data = no match,
     not an error.
     """
-    mapped = FIELD_MAP.get(sigma_field)
-    if mapped is None:
-        return None  # field not in our schema - will never match
-    if callable(mapped):
-        return mapped(event)
-    return getattr(event, mapped, None)
+    if sigma_field in FIELD_MAP:
+        mapped = FIELD_MAP[sigma_field]
+        if mapped is None:
+            return None  # explicitly unmapped - will never match
+        if callable(mapped):
+            return mapped(event)
+        return getattr(event, mapped, None)
+
+    # Not an explicitly mapped field. Many Zeek log fields (Z, rejected,
+    # qtype_name, answers, c-useragent, c-uri, resp_mime_types, etc.)
+    # aren't promoted to NormalizedEvent attributes, but the full raw
+    # Zeek JSON is preserved in raw_data - check there before giving up.
+    if event.raw_data and sigma_field in event.raw_data:
+        return event.raw_data[sigma_field]
+
+    return None  # genuinely not captured anywhere - will never match
