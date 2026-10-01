@@ -190,49 +190,71 @@ class SigmaRule:
 
     def _eval_condition(self, condition: str, selections: dict) -> bool:
         """
-        Evaluates simple Sigma condition expressions.
-        Handles the most common patterns: selection, all of X, 1 of X,
-        NOT, AND, OR, and their combinations.
+        Evaluates Sigma condition expressions using a small recursive-
+        descent parser, so precedence (NOT > AND > OR) and parentheses
+        are handled correctly instead of via fragile string-splitting.
+        Supports: identifiers, "1 of X*", "all of X*", "1 of them",
+        "all of them", "not X", "X and Y", "X or Y", "(X)".
         """
-        condition = condition.strip()
+        tokens = re.findall(r"\(|\)|[A-Za-z_][A-Za-z0-9_]*\*?|\d+", condition)
+        pos = [0]
 
-        # "all of selection*" — all keys matching the pattern must be True
-        m = re.match(r"all of (\w+)\*", condition)
-        if m:
-            prefix = m.group(1)
-            matching = [v for k, v in selections.items() if k.startswith(prefix)]
-            return bool(matching) and all(matching)
+        def peek():
+            return tokens[pos[0]] if pos[0] < len(tokens) else None
 
-        # "1 of filter*" or "1 of selection*"
-        m = re.match(r"1 of (\w+)\*", condition)
-        if m:
-            prefix = m.group(1)
-            matching = [v for k, v in selections.items() if k.startswith(prefix)]
-            return any(matching)
+        def advance():
+            tok = tokens[pos[0]]
+            pos[0] += 1
+            return tok
 
-        # Operator precedence: NOT binds tighter than AND/OR, so AND/OR
-        # must be checked FIRST here. Otherwise "not X and Y" (which
-        # should mean "(not X) and Y") gets misparsed as a single
-        # "not " prefix over the WHOLE remaining string - i.e. as
-        # "not (X and Y)" - flipping the result. Splitting on AND/OR
-        # first means each operand (e.g. "not X") is evaluated on its
-        # own, where the "not " branch below correctly applies only
-        # to that one term.
+        def parse_or():
+            result = parse_and()
+            while peek() is not None and peek().lower() == "or":
+                advance()
+                rhs = parse_and()
+                result = result or rhs
+            return result
 
-        # "X and Y"
-        if " and " in condition.lower():
-            parts = re.split(r"\band\b", condition, flags=re.IGNORECASE)
-            return all(self._eval_condition(p.strip(), selections) for p in parts)
+        def parse_and():
+            result = parse_not()
+            while peek() is not None and peek().lower() == "and":
+                advance()
+                rhs = parse_not()
+                result = result and rhs
+            return result
 
-        # "X or Y"
-        if " or " in condition.lower():
-            parts = re.split(r"\bor\b", condition, flags=re.IGNORECASE)
-            return any(self._eval_condition(p.strip(), selections) for p in parts)
+        def parse_not():
+            if peek() is not None and peek().lower() == "not":
+                advance()
+                return not parse_not()
+            return parse_atom()
 
-        # "not X" (single term only, no and/or left to split on)
-        if condition.lower().startswith("not "):
-            inner = condition[4:].strip()
-            return not self._eval_condition(inner, selections)
+        def parse_atom():
+            tok = peek()
+            if tok == "(":
+                advance()
+                result = parse_or()
+                if peek() == ")":
+                    advance()
+                return result
 
-        # Simple named selection
-        return selections.get(condition, False)
+            if tok is not None and tok.lower() in ("1", "all"):
+                quantifier = advance().lower()
+                if peek() is not None and peek().lower() == "of":
+                    advance()
+                target = advance() if peek() is not None else ""
+                if target.lower() == "them":
+                    matching = list(selections.values())
+                elif target.endswith("*"):
+                    prefix = target[:-1]
+                    matching = [v for k, v in selections.items() if k.startswith(prefix)]
+                else:
+                    matching = [selections.get(target, False)]
+                if quantifier == "1":
+                    return any(matching)
+                return bool(matching) and all(matching)
+
+            name = advance()
+            return selections.get(name, False)
+
+        return parse_or()
