@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List
 from src.models.event_schema import NormalizedEvent
 from src.ingestion.zeek_parser import parse_zeek_conn_logs
+from src.ingestion.zeek_dns_parser import parse_zeek_dns_logs
 from src.ingestion.suricata_parser import parse_suricata_alerts
 
 
@@ -28,6 +29,28 @@ def run_zeek_on_pcap(pcap_path: str, output_dir: Path) -> List[dict]:
 
     events = []
     with open(conn_log) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                events.append(json.loads(line))
+    return events
+
+
+def read_zeek_dns_log(output_dir: Path) -> List[dict]:
+    """
+    Reads Zeek's dns.log, generated automatically whenever the PCAP
+    contains DNS traffic - no extra flags needed, same as conn.log.
+    Previously never read at all, meaning every Zeek-category DNS
+    Sigma rule (TOR domains, mining pools, DNS Z-flag, NKN) had zero
+    chance of ever firing on real PCAP data, regardless of whether
+    the evaluator logic was correct.
+    """
+    dns_log = output_dir / "dns.log"
+    if not dns_log.exists():
+        return []
+
+    events = []
+    with open(dns_log) as f:
         for line in f:
             line = line.strip()
             if line:
@@ -83,11 +106,16 @@ def process_pcap(pcap_path: str) -> List[NormalizedEvent]:
 
         # Zeek path (protocol-aware: HTTP, DNS, SSL, Kerberos, etc.)
         zeek_raw = run_zeek_on_pcap(pcap_path, tmp_path)
+        zeek_dns_raw = read_zeek_dns_log(tmp_path)
         suricata_raw = run_suricata_on_pcap(pcap_path, tmp_path)
 
         zeek_events = parse_zeek_conn_logs(zeek_raw) if zeek_raw else []
+        zeek_dns_events = parse_zeek_dns_logs(zeek_dns_raw) if zeek_dns_raw else []
         suricata_events = parse_suricata_alerts(suricata_raw) if suricata_raw else []
+        if zeek_dns_events:
+            print(f"[PCAP] Zeek produced {len(zeek_dns_events)} DNS query events")
         all_events.extend(zeek_events)
+        all_events.extend(zeek_dns_events)
         all_events.extend(suricata_events)
 
     # Direct Scapy path (packet-level: catches high-speed port scans
@@ -100,7 +128,7 @@ def process_pcap(pcap_path: str) -> List[NormalizedEvent]:
     if len(scapy_events) > len(zeek_events) * 2:
         print(f"[PCAP] Zeek produced {len(zeek_events)} conn events, "
               f"Scapy found {len(scapy_events)} packets - using Scapy for network layer")
-        all_events = suricata_events + scapy_events
+        all_events = suricata_events + scapy_events + zeek_dns_events
     else:
         all_events.extend(scapy_events)
 
