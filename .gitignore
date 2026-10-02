@@ -55,3 +55,4 @@ data/sigma_rules/windows/process_creation/
 data/sigma_rules/linux/builtin/
 data/sigma_rules/network/builtin/
 .flask_secret
+data/ioc/feodo_tracker.json

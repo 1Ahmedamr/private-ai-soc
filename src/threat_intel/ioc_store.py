@@ -16,6 +16,7 @@ Why sets instead of a database? For lookup performance. A set of
 be O(log n) at best. For per-event IOC matching, O(1) matters.
 """
 
+import ipaddress
 import json
 from pathlib import Path
 from typing import Set, Optional
@@ -45,6 +46,7 @@ class IOCStore:
         self.malicious_hashes: Set[str] = set()
         self._ip_metadata: dict = {}
         self._domain_metadata: dict = {}
+        self._hash_metadata: dict = {}
         self._loaded = False
 
     def load(self) -> None:
@@ -69,18 +71,26 @@ class IOCStore:
 
     def _load_plaintext(self, path: Path) -> None:
         source = path.stem
-        ioc_type = "ip" if "ip" in source.lower() else "domain"
+        meta = {"threat_name": source, "confidence": 0.7, "source": source}
         with open(path) as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                if ioc_type == "ip":
+                # Decide by content, not filename: a file named "zip_domains.txt"
+                # must not be treated as an IP list just because it contains "ip".
+                try:
+                    ipaddress.ip_address(line)
+                    is_ip = True
+                except ValueError:
+                    is_ip = False
+                if is_ip:
                     self.malicious_ips.add(line)
-                    self._ip_metadata[line] = {"threat_name": source, "confidence": 0.7, "source": source}
+                    self._ip_metadata[line] = dict(meta)
                 else:
-                    self.malicious_domains.add(line)
-                    self._domain_metadata[line] = {"threat_name": source, "confidence": 0.7, "source": source}
+                    domain = line.lower()
+                    self.malicious_domains.add(domain)
+                    self._domain_metadata[domain] = dict(meta)
 
     def _load_json(self, path: Path) -> None:
         source = path.stem
@@ -103,6 +113,7 @@ class IOCStore:
                     self._domain_metadata[value] = meta
                 elif ioc_type in ("md5", "sha256", "hash"):
                     self.malicious_hashes.add(value)
+                    self._hash_metadata[value] = meta
         except Exception as e:
             print(f"[IOC] Failed to load {path}: {e}")
 
@@ -122,13 +133,31 @@ class IOCStore:
     def check_domain(self, domain: str) -> Optional[IOCMatch]:
         if not domain:
             return None
-        domain_lower = domain.lower()
-        if domain_lower in self.malicious_domains:
-            meta = self._domain_metadata.get(domain_lower, {})
+        labels = domain.lower().rstrip(".").split(".")
+        # Try the full name, then each parent domain (never the bare TLD),
+        # so an IOC for evil.com also matches login.evil.com.
+        for i in range(max(len(labels) - 1, 1)):
+            candidate = ".".join(labels[i:])
+            if candidate in self.malicious_domains:
+                meta = self._domain_metadata.get(candidate, {})
+                return IOCMatch(
+                    ioc_type="domain", ioc_value=candidate,
+                    threat_name=meta.get("threat_name", "unknown"),
+                    confidence=meta.get("confidence", 0.7),
+                    source=meta.get("source", "unknown"),
+                )
+        return None
+
+    def check_hash(self, file_hash: str) -> Optional[IOCMatch]:
+        if not file_hash:
+            return None
+        h = file_hash.strip().lower()
+        if h in self.malicious_hashes:
+            meta = self._hash_metadata.get(h, {})
             return IOCMatch(
-                ioc_type="domain", ioc_value=domain_lower,
+                ioc_type="hash", ioc_value=h,
                 threat_name=meta.get("threat_name", "unknown"),
-                confidence=meta.get("confidence", 0.7),
+                confidence=meta.get("confidence", 0.8),
                 source=meta.get("source", "unknown"),
             )
         return None
@@ -149,6 +178,11 @@ class IOCStore:
                 matches.append(m)
         if event.event_id:
             m = self.check_domain(event.event_id)
+            if m:
+                matches.append(m)
+        file_hash = getattr(event, "file_hash", None)
+        if file_hash:
+            m = self.check_hash(file_hash)
             if m:
                 matches.append(m)
         return matches
