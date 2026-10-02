@@ -17,6 +17,7 @@ from typing import List, Optional, Any
 from dataclasses import dataclass
 from src.models.event_schema import NormalizedEvent, EventSource
 from src.sigma.field_mapping import get_field_value
+from src.mitre.naming import format_tactic
 
 
 @dataclass
@@ -45,9 +46,14 @@ class SigmaRule:
         self.status = rule_dict.get("status", "experimental")
 
         # MITRE mapping
-        tags = rule_dict.get("tags", [])
-        self.mitre_techniques = [t.replace("attack.t", "T").upper() for t in tags if t.startswith("attack.t")]
-        self.mitre_tactics = [t.replace("attack.", "").replace("_", " ").title() for t in tags if t.startswith("attack.") and not t.startswith("attack.t")]
+        tags = [str(t).lower() for t in rule_dict.get("tags", [])]
+        technique_re = re.compile(r"^attack\.t\d{4}(\.\d{3})?$")
+        entity_re = re.compile(r"^attack\.[gs]\d{4}$")   # groups/software, not tactics
+        self.mitre_techniques = [t[len("attack."):].upper() for t in tags if technique_re.match(t)]
+        self.mitre_tactics = [
+            format_tactic(t[len("attack."):]) for t in tags
+            if t.startswith("attack.") and not technique_re.match(t) and not entity_re.match(t)
+        ]
 
         # Log source filter — only evaluate rules matching our sources
         logsource = rule_dict.get("logsource", {})

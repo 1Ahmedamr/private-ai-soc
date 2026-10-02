@@ -12,6 +12,7 @@ from src.incidents.store import IncidentStore
 from src.models.incident_schema import IncidentStatus
 from src.dashboard.timeline import build_timeline_entries
 from src.pipeline.file_analyzer import analyze_file
+from src.webapp.analysis_store import save_analysis, load_analysis, save_chat_history
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -65,6 +66,30 @@ def get_store() -> IncidentStore:
     return IncidentStore(DB_PATH)
 
 
+def current_analysis():
+    """Analysis lives server-side (cookie holds only an id); falls back to
+    a legacy in-cookie analysis if present."""
+    stored = load_analysis(session.get("analysis_id"))
+    if stored:
+        return stored["analysis"]
+    return session.get("last_analysis")
+
+
+def current_chat_history():
+    stored = load_analysis(session.get("analysis_id"))
+    if stored:
+        return stored["chat_history"]
+    return session.get("chat_history", [])
+
+
+def store_chat_history(history):
+    if load_analysis(session.get("analysis_id")):
+        save_chat_history(session["analysis_id"], history)
+    else:
+        session["chat_history"] = history
+        session.modified = True
+
+
 @app.route("/")
 @require_auth
 def index():
@@ -113,15 +138,17 @@ def analyze_upload():
         os.remove(save_path)
     except FileNotFoundError:
         pass
-    session["last_analysis"] = result.to_session_dict()
-    session["chat_history"] = []
+    session.pop("last_analysis", None)
+    session.pop("chat_history", None)
+    session["analysis_id"] = save_analysis(result.to_session_dict())
     return render_template("analyze_results.html", result=result)
 
 
 @app.route("/chat", methods=["POST"])
 @require_auth
 def chat():
-    if "last_analysis" not in session:
+    analysis = current_analysis()
+    if analysis is None:
         return jsonify({
             "error": "Session expired — please re-upload your file to restore the analysis context.",
             "session_expired": True
@@ -133,8 +160,7 @@ def chat():
     if not question:
         return jsonify({"error": "Empty question."}), 400
 
-    analysis = session["last_analysis"]
-    chat_history = session.get("chat_history", [])
+    chat_history = current_chat_history()
 
     context_parts = [
         f"File analyzed: {analysis['filename']}",
@@ -234,8 +260,7 @@ ANALYSIS CONTEXT:
         return jsonify({"error": f"AI unavailable: {str(e)[:100]}"}), 503
 
     chat_history.append({"question": question, "answer": answer})
-    session["chat_history"] = chat_history
-    session.modified = True
+    store_chat_history(chat_history)
     return jsonify({"answer": answer, "turn": len(chat_history)})
 
 
@@ -303,13 +328,13 @@ def enrich():
 @app.route("/host-summary", methods=["POST"])
 @require_auth
 def host_summary():
-    if "last_analysis" not in session:
+    analysis = current_analysis()
+    if analysis is None:
         return jsonify({"error": "Session expired — please re-upload your file.", "session_expired": True}), 400
     data = request.get_json()
     victim_ip = data.get("victim_ip") if data else None
     if not victim_ip:
         return jsonify({"error": "victim_ip required"}), 400
-    analysis = session["last_analysis"]
     host_sums = analysis.get("host_summaries", [])
     target = next((hs for hs in host_sums if hs["victim_ip"] == victim_ip), None)
     if not target:
@@ -357,6 +382,20 @@ Respond ONLY with JSON: {{"narrative":"...","attack_stage":"...","confidence":"h
         })
     except Exception as e:
         return jsonify({"error": f"AI unavailable: {str(e)[:100]}"}), 503
+
+
+@app.route("/timeline/<path:victim_ip>")
+@require_auth
+def host_timeline(victim_ip):
+    analysis = current_analysis()
+    if analysis is None:
+        return render_template("analyze.html", error="Session expired - please re-upload your file."), 400
+    hs = next((h for h in analysis.get("host_summaries", []) if h["victim_ip"] == victim_ip), None)
+    if not hs:
+        abort(404)
+    from src.correlation.timeline import build_host_timeline
+    tl = build_host_timeline(hs, analysis["incidents"])
+    return render_template("timeline.html", tl=tl)
 
 
 if __name__ == "__main__":

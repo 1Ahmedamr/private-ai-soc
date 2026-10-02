@@ -423,6 +423,7 @@ async function enrichIOC() {
   <p class="note">Multiple incidents were detected on the same host within the same time window. This may represent a single attack campaign rather than isolated events.</p>
 
   {% for hs in result.host_summaries %}
+  <p style="margin:0 0 6px"><a class="badge" href="/timeline/{{ hs.victim_ip }}">View attack timeline →</a></p>
   {% set hsev = hs.highest_severity|string|lower %}
   <div class="section" data-sev="{{ hsev }}" style="border-left:4px solid var(--c);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">

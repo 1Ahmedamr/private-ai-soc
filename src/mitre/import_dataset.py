@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Dict
 from src.mitre.models import MitreTechnique
+from src.mitre.naming import format_tactic
 
 DATASET_PATH = Path("data/mitre/enterprise-attack.json")
 
@@ -37,7 +38,7 @@ def load_full_mitre_dataset() -> Dict[str, MitreTechnique]:
         if not technique_id:
             continue
 
-        tactics = [phase["phase_name"].replace("-", " ").title() for phase in obj.get("kill_chain_phases", [])]
+        tactics = [format_tactic(phase["phase_name"]) for phase in obj.get("kill_chain_phases", [])]
 
         techniques[technique_id] = MitreTechnique(
             technique_id=technique_id,

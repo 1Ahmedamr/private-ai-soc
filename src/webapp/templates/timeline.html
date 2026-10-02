@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Host Timeline - Private AI SOC{% endblock %}
+{% block content %}
+<style>
+[data-sev="critical"]{--c:var(--crit)}
+[data-sev="high"]{--c:var(--high)}
+[data-sev="medium"]{--c:var(--med)}
+[data-sev="low"],[data-sev="info"]{--c:var(--low)}
+
+.banner{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;
+  padding:26px 28px;border-radius:18px;color:#fff;margin-bottom:20px;
+  background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 68%,#000));
+  box-shadow:0 26px 50px -30px var(--c);
+}
+.banner h1{color:#fff;margin:0 0 6px;font-size:clamp(24px,2.6vw,34px)}
+.banner p{margin:0;font-size:16px;opacity:.92}
+.ip-chip{display:inline-block;padding:.08rem .55rem;border-radius:6px;background:rgba(255,255,255,.18);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.18);font-size:14px}
+.banner .big{text-align:center;padding-left:22px;border-left:1px solid rgba(255,255,255,.35)}
+.banner .big b{display:block;font-family:var(--display);font-weight:400;font-size:64px;line-height:1}
+.banner .big span{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;opacity:.85}
+@media (max-width:700px){.banner{grid-template-columns:1fr}.banner .big{border-left:0;padding-left:0;text-align:left;border-top:1px solid rgba(255,255,255,.35);padding-top:14px}}
+
+.tl{position:relative;margin:4px 0 0;padding-left:34px}
+.tl::before{content:"";position:absolute;left:11px;top:6px;bottom:6px;width:2px;background:var(--hairline)}
+.tl-item{position:relative;margin-bottom:20px;animation:rise .55s cubic-bezier(.22,1,.36,1) backwards}
+.tl-item:nth-of-type(2){animation-delay:.08s}
+.tl-item:nth-of-type(3){animation-delay:.16s}
+.tl-item:nth-of-type(4){animation-delay:.24s}
+.tl-item:nth-of-type(n+5){animation-delay:.32s}
+.tl-item::before{content:"";position:absolute;left:-30px;top:22px;width:14px;height:14px;border-radius:50%;background:var(--c);border:3px solid var(--paper);box-shadow:0 0 0 1px var(--c)}
+.tl-gap{font-size:12px;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px}
+.section.tl-card{border-left:5px solid var(--c);margin-bottom:0}
+.tl-time{font-size:14px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.tl-card h3{margin:4px 0 8px}
+.tl-meta{font-size:14px;color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.sevtag{display:inline-block;font-size:12px;letter-spacing:.16em;color:#fff;background:var(--c);border-radius:6px;padding:.1rem .55rem}
+.tl-ev{margin:12px 0 0;padding-left:1.1rem;font-size:14px;color:var(--ink-soft);border-top:1px solid var(--hairline);padding-top:10px}
+.tl-ev li{margin-bottom:.35rem}
+</style>
+
+<a href="/analyze" class="back">← Back to analysis (re-upload if the session expired)</a>
+
+<section class="banner" data-sev="{{ tl.highest_severity }}">
+  <div>
+    <h1>Attack timeline — host <span class="ip-chip">{{ tl.victim_ip }}</span></h1>
+    <p>{{ tl.count }} linked incident{{ '' if tl.count == 1 else 's' }} over {{ tl.span or '0s' }}</p>
+    <div class="chips">
+      <span class="chip">Highest severity: {{ tl.highest_severity|upper }}</span>
+      {% if tl.tactics_in_order %}<span class="chip">Tactics: {{ tl.tactics_in_order|join(' → ') }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="big"><b>{{ tl.count }}</b><span>linked incidents</span></div>
+</section>
+
+<div class="tl">
+  {% for e in tl.entries %}
+  <div class="tl-item" data-sev="{{ e.severity }}">
+    {% if e.gap_label %}<p class="tl-gap">+{{ e.gap_label }} after previous incident started</p>{% endif %}
+    <div class="section tl-card">
+      <div class="tl-time">{{ e.time }} → {{ e.end_time }} ({{ e.duration }})</div>
+      <h3>{{ e.title }}</h3>
+      <div class="tl-meta">
+        <span class="sevtag">{{ e.severity|upper }}</span>
+        <span>risk {{ e.risk }}/100</span>
+        <span>actor/key: {{ e.actor }}</span>
+        {% if e.tactics %}<span>tactic: {{ e.tactics|join(', ') }}</span>{% endif %}
+        <span>MITRE: {% for t in e.techniques %}<a class="badge" href="https://attack.mitre.org/techniques/{{ t.replace('.', '/') }}/" target="_blank" rel="noopener">{{ t }}</a>{% else %}none mapped{% endfor %}</span>
+      </div>
+      {% if e.evidence %}
+      <ul class="tl-ev">{% for line in e.evidence %}<li>{{ line }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<p class="note" style="font-style:italic;margin-top:22px">
+  Order reflects when each incident's detection window began (UTC). It shows observed sequence,
+  not proven causation — validate relationships with endpoint and network telemetry before concluding.
+</p>
+{% endblock %}
