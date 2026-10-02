@@ -21,6 +21,12 @@ SEVERITY_WEIGHTS = {
 MAX_EVIDENCE_BONUS = 20      # cap on how much "more evidence" can add to the score
 EVIDENCE_BONUS_PER_DETECTION = 5
 
+# Network-only evidence (Zeek/Suricata, no process/host/file telemetry) shows
+# strong indicators, not confirmed compromise, so it is capped below 90.
+# Judgment call: tune against real cases.
+NETWORK_ONLY_SOURCES = {"zeek", "suricata"}
+NETWORK_ONLY_SCORE_CAP = 89
+
 CRITICAL_ASSET_MULTIPLIER = 1.3    # asset importance boosts final score
 
 
@@ -90,4 +96,9 @@ def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) ->
         raw_score *= CRITICAL_ASSET_MULTIPLIER
 
     final_score = max(0, min(100, round(raw_score)))
+    if incident.events and all(
+        getattr(e.source, "value", e.source) in NETWORK_ONLY_SOURCES
+        for e in incident.events
+    ):
+        final_score = min(final_score, NETWORK_ONLY_SCORE_CAP)
     return final_score

@@ -44,7 +44,9 @@ def test_investigate_parses_valid_response(mock_post):
 
     assert result is not None
     assert isinstance(result, InvestigationVerdict)
-    assert "Reset password" in result.recommended_actions
+    # actions are generated deterministically from evidence, not by the model
+    assert result.recommended_actions
+    assert "Reset password" not in result.recommended_actions
 
 
 @patch("src.ai.ollama_client.requests.post")

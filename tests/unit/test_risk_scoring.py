@@ -84,3 +84,19 @@ def test_high_volume_events_increase_score():
         events=[make_event() for _ in range(1500)],
     )
     assert calculate_risk_score(many_events) > calculate_risk_score(few_events)
+
+
+def test_network_only_evidence_is_capped_below_90():
+    from src.models.event_schema import NormalizedEvent, EventSource, EventType
+    net = [NormalizedEvent(timestamp=datetime.now(), source=EventSource.ZEEK,
+                           event_type=EventType.NETWORK_CONNECTION, src_ip="10.0.0.5",
+                           dst_ip="8.8.8.8") for _ in range(1500)]
+    inc = make_incident(severity=Severity.CRITICAL,
+                        detections=[make_detection() for _ in range(4)], events=net)
+    assert calculate_risk_score(inc) <= 89
+
+
+def test_endpoint_backed_incident_is_not_capped():
+    inc = make_incident(severity=Severity.CRITICAL, detections=[make_detection()],
+                        events=[make_event()])  # WINDOWS event
+    assert calculate_risk_score(inc) >= 90

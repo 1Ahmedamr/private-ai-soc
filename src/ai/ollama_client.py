@@ -105,6 +105,12 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
         response.raise_for_status()
         raw_text = response.json()["response"]
         parsed = json.loads(raw_text)
-        return InvestigationVerdict.model_validate(parsed)
+        verdict = InvestigationVerdict.model_validate(parsed)
+        # Actions are built in code from the evidence (correct IPs and flow
+        # direction); the model only contributes the summary and stage.
+        from src.ai.actions import build_actions
+        actions = build_actions(evidence.detection_descriptions,
+                                evidence.source_ips, evidence.target_ips)
+        return verdict.model_copy(update={"recommended_actions": actions})
     except Exception:
         return None
