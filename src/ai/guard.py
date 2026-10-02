@@ -12,8 +12,34 @@ _REPLACEMENTS = [
 ]
 _CONTAINMENT = re.compile(r"\b(isolate|containment|block (?:the )?(?:ip|source))\b", re.I)
 
+# Claims the model likes to add without evidence. Each entry is
+# (phrase that makes a sentence a claim, pattern the evidence must contain to support it).
+_UNSUPPORTED_CLAIMS = [
+    (re.compile(r"\blateral movement\b", re.I), re.compile(r"lateral|psexec|\bsmb\b|\brdp\b|winrm|remote service", re.I)),
+    (re.compile(r"\bexfiltrat\w*|\bdata theft\b|\bstole\w*|\bstolen\b", re.I), re.compile(r"exfil|upload|data transfer|\bstole|\bstolen", re.I)),
+    (re.compile(r"\bransomware\b", re.I), re.compile(r"ransom|encrypt", re.I)),
+    (re.compile(r"\breconnaissance\b", re.I), re.compile(r"scan|recon|enumerat|discovery|probe", re.I)),
+]
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
 NOTE = ("\n\n[Wording adjusted: this tool cannot determine attacker/victim roles or "
         "confirmed compromise from alerts alone. Containment is not recommended until the alert is validated.]")
+
+
+def drop_unsupported_claims(text: str, evidence_text: str) -> str:
+    """Remove sentences that assert something the evidence never mentions.
+    If every sentence would be removed, the original text is kept."""
+    if not evidence_text:
+        return text
+    kept = []
+    for sentence in _SENTENCE_SPLIT.split(text.strip()):
+        unsupported = any(
+            claim.search(sentence) and not support.search(evidence_text)
+            for claim, support in _UNSUPPORTED_CLAIMS
+        )
+        if not unsupported:
+            kept.append(sentence)
+    return " ".join(kept) if kept else text
 
 
 def sanitize_ai_text(text: str, evidence_text: str = "", add_note: bool = True) -> str:
@@ -27,4 +53,5 @@ def sanitize_ai_text(text: str, evidence_text: str = "", add_note: bool = True) 
     # "Informational signature matched" is a prompt artefact; it is wrong on ET MALWARE/TROJAN.
     if re.search(r"ET (MALWARE|TROJAN)", evidence_text or ""):
         text = re.sub(r"\s*Informational signature matched\.?", "", text, flags=re.I)
+    text = drop_unsupported_claims(text, evidence_text)
     return text + NOTE if (changed and add_note) else text

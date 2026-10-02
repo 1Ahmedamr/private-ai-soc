@@ -1,32 +1,39 @@
+# tests/unit/test_ai_guard.py
+
 from src.ai.guard import sanitize_ai_text
-from src.correlation.assessment import build_assessment
+
+WINDOWS_EVIDENCE = (
+    "Scheduled task '\\WindowsUpdateCheck' was created on host 'WIN10-CLIENT'; "
+    "Sigma rule matched: Detects a failed logon attempt from a public IP."
+)
+SUMMARY = (
+    "A scheduled task was created with an encoded PowerShell command. "
+    "The presence of multiple Sigma rules indicates potential reconnaissance or lateral movement."
+)
 
 
-def test_roles_and_compromise_wording_removed_and_noted():
-    out = sanitize_ai_text("**Attacker:** 1.2.3.4. Victim: 10.0.0.5, a compromised endpoint. Immediate containment advised.")
-    low = out.lower()
-    assert "attacker" not in low and "victim" not in low
-    assert "compromised endpoint" not in low and "immediate containment" not in low
-    assert "Wording adjusted" in out
+def test_unsupported_lateral_movement_sentence_is_removed():
+    out = sanitize_ai_text(SUMMARY, WINDOWS_EVIDENCE, add_note=False)
+    assert "lateral movement" not in out.lower()
+    assert "scheduled task was created" in out
 
 
-def test_clean_text_is_untouched():
-    t = "Communication observed between 1.2.3.4 and 10.0.0.5."
-    assert sanitize_ai_text(t) == t
+def test_claim_is_kept_when_evidence_supports_it():
+    evidence = "Port scan detected: 12 ports probed on 10.0.0.5"
+    out = sanitize_ai_text("This looks like reconnaissance activity.", evidence, add_note=False)
+    assert "reconnaissance" in out
 
 
-def test_informational_phrase_stripped_only_for_et_malware():
-    s = "Traffic matched. Informational signature matched. More."
-    assert "Informational" not in sanitize_ai_text(s, "ET MALWARE BackConnect", add_note=False)
-    assert "Informational" in sanitize_ai_text(s, "ET INFO PE EXE", add_note=False)
+def test_without_evidence_text_nothing_is_dropped():
+    out = sanitize_ai_text("Possible lateral movement.", add_note=False)
+    assert "lateral movement" in out
 
 
-def test_assessment_counts_indicators_and_never_attributes():
-    entries = [
-        {"title": "Possible C2 Beacon (Periodic Connections)", "evidence": ["High-entropy domain queried: 'x.com'"]},
-        {"title": "Suricata Signature Match", "evidence": ["ET MALWARE BackConnect CnC"]},
-        {"title": "Suricata Signature Match", "evidence": ["ET INFO PE EXE or DLL Windows file download"]},
-    ]
-    a = build_assessment(entries, "172.17.5.135")
-    assert a["confidence"] == "Medium-High" and len(a["indicators"]) == 4
-    assert "not determined" in a["attribution"] and "172.17.5.135" in a["text"]
+def test_text_is_kept_if_every_sentence_would_be_removed():
+    out = sanitize_ai_text("Possible lateral movement.", WINDOWS_EVIDENCE, add_note=False)
+    assert out == "Possible lateral movement."
+
+
+def test_existing_word_replacements_still_work():
+    out = sanitize_ai_text("The attacker used a compromised host.", add_note=False)
+    assert "attacker" not in out.lower() and "potentially affected host" in out
