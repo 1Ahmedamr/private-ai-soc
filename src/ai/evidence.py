@@ -41,8 +41,10 @@ def compute_attack_stage(detections) -> str:
     for d in detections:
         tactic = getattr(d, "mitre_tactic", None)
         if tactic:
-            key = tactic.lower().replace("_", " ").strip()
-            seen.setdefault(key, key.title())
+            for part in tactic.split(","):
+                key = part.lower().replace("_", " ").strip()
+                if key:
+                    seen.setdefault(key, key.title())
     if len(seen) < 2:
         return ""
     order = {name: i for i, name in enumerate(_STAGE_PRIORITY)}

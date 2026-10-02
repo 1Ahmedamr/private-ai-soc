@@ -58,3 +58,12 @@ def test_t1078_kept_when_a_successful_logon_exists():
     match = SimpleNamespace(rule_name="Failed Logon From Public IP", mitre_technique="T1078", mitre_tactic="Defense Evasion")
     events = [SimpleNamespace(event_type="authentication", status="success")]
     assert DetectionEngine._adjust_logon_mapping(match, events) == ("T1078", "Defense Evasion")
+
+
+def test_comma_separated_tactics_are_split():
+    dets = [
+        _det("task", "Execution, Persistence, Privilege Escalation", 0.9),
+        _det("svc", "Persistence, Privilege Escalation", 0.85),
+        _det("bf", "Credential Access", 0.8),
+    ]
+    assert compute_attack_stage(dets) == "Persistence + Privilege Escalation + Execution + Credential Access"

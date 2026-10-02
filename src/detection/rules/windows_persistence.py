@@ -72,17 +72,24 @@ def detect_windows_persistence(events: List[NormalizedEvent]) -> List[DetectionR
         seen.add(event_id)
 
         if event_id == "4698":
-            technique_id, tactic = _tech("T1053.005", "Persistence")
+            technique_id, _ = _tech("T1053.005", "Persistence")
+            tactic = "Persistence"  # the technique table lists several tactics; the evidence shows persistence
             rule_name = "Suspicious Scheduled Task Created"
             rule_id = "SOC-PERSIST-001"
             what = f"Scheduled task '{name}' was created"
             confidence = 0.9 if len(reasons) > 1 or "PowerShell" in reasons[0] else 0.8
         else:
-            technique_id, tactic = _tech("T1543.003", "Persistence")
+            technique_id, _ = _tech("T1543.003", "Persistence")
+            tactic = "Persistence"
             rule_name = "Suspicious Service Installed"
             rule_id = "SOC-PERSIST-002"
             what = f"Service '{name}' was installed"
             confidence = 0.85
+
+        user_text = (
+            f"user '{event.user}'" if event.user
+            else "an unrecorded account (service installs usually run as SYSTEM)"
+        )
 
         results.append(DetectionResult(
             rule_name=rule_name,
@@ -92,7 +99,7 @@ def detect_windows_persistence(events: List[NormalizedEvent]) -> List[DetectionR
             mitre_technique=technique_id,
             mitre_tactic=tactic,
             description=(
-                f"{what} on host '{event.host}' by user '{event.user}'; "
+                f"{what} on host '{event.host}' by {user_text}; "
                 f"{'; '.join(reasons)}. Command: {event.command}"
             ),
             confidence=confidence,

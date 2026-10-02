@@ -96,9 +96,11 @@ def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) ->
         avg_confidence = 1.0
 
     distinct_tactics = {
-        d.mitre_tactic.lower().replace("_", " ").strip()
+        part.lower().replace("_", " ").strip()
         for d in incident.detections
         if getattr(d, "mitre_tactic", None)
+        for part in d.mitre_tactic.split(",")
+        if part.strip()
     }
     tactic_bonus = min(max(len(distinct_tactics) - 1, 0) * TACTIC_BONUS_PER_STAGE, MAX_TACTIC_BONUS)
 
