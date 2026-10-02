@@ -22,6 +22,32 @@ class InvestigationEvidence(BaseModel):
     relevant_playbook_excerpts: List[str] = []
     source_ips: list = []
     target_ips: list = []
+    attack_stage: str = ""
+
+
+# Most advanced stage first, used to order the stages shown to the analyst.
+_STAGE_PRIORITY = [
+    "impact", "exfiltration", "command and control", "collection",
+    "lateral movement", "persistence", "privilege escalation",
+    "defense evasion", "execution", "discovery", "credential access",
+    "initial access", "resource development", "reconnaissance",
+]
+
+
+def compute_attack_stage(detections) -> str:
+    """Stage label from the detections' own tactics. Returns '' when fewer than
+    two distinct tactics exist, so single-tactic incidents keep the existing logic."""
+    seen = {}
+    for d in detections:
+        tactic = getattr(d, "mitre_tactic", None)
+        if tactic:
+            key = tactic.lower().replace("_", " ").strip()
+            seen.setdefault(key, key.title())
+    if len(seen) < 2:
+        return ""
+    order = {name: i for i, name in enumerate(_STAGE_PRIORITY)}
+    keys = sorted(seen, key=lambda k: order.get(k, len(_STAGE_PRIORITY)))
+    return " + ".join(seen[k] for k in keys)
 
 
 _knowledge_base = None
@@ -87,4 +113,5 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         relevant_playbook_excerpts=relevant_chunks,
         source_ips=source_ips,
         target_ips=target_ips[:5],
+        attack_stage=compute_attack_stage(incident.detections),
     )

@@ -29,6 +29,11 @@ NETWORK_ONLY_SCORE_CAP = 89
 
 CRITICAL_ASSET_MULTIPLIER = 1.3    # asset importance boosts final score
 
+# Detections spanning several distinct ATT&CK tactics (e.g. credential access +
+# execution + persistence) corroborate each other more than repeats of one stage.
+TACTIC_BONUS_PER_STAGE = 5
+MAX_TACTIC_BONUS = 15
+
 
 def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) -> int:
     base_score = SEVERITY_WEIGHTS[incident.severity]
@@ -90,7 +95,14 @@ def calculate_risk_score(incident: Incident, is_critical_asset: bool = False) ->
     else:
         avg_confidence = 1.0
 
-    raw_score = (base_score + evidence_bonus + volume_bonus) * avg_confidence
+    distinct_tactics = {
+        d.mitre_tactic.lower().replace("_", " ").strip()
+        for d in incident.detections
+        if getattr(d, "mitre_tactic", None)
+    }
+    tactic_bonus = min(max(len(distinct_tactics) - 1, 0) * TACTIC_BONUS_PER_STAGE, MAX_TACTIC_BONUS)
+
+    raw_score = (base_score + evidence_bonus + volume_bonus + tactic_bonus) * avg_confidence
 
     if is_critical_asset:
         raw_score *= CRITICAL_ASSET_MULTIPLIER

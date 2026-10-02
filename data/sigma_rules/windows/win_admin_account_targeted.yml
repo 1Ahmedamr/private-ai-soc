@@ -3,12 +3,12 @@ id: cf743b77-6b0e-4c5b-8e5f-9d1a2c3b4e5f
 status: stable
 description: Detects failed logon attempts specifically targeting administrative accounts
 references:
-    - https://attack.mitre.org/techniques/T1078/
+    - https://attack.mitre.org/techniques/T1110/
 author: Private AI SOC
 date: 2024/01/01
 tags:
-    - attack.t1078
-    - attack.defense_evasion
+    - attack.t1110
+    - attack.credential_access
 logsource:
     product: windows
     service: security

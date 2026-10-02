@@ -115,13 +115,14 @@ class DetectionEngine:
             )
             if match_count[rule_id] < needed:
                 continue
+            technique, tactic = self._adjust_logon_mapping(match, events)
             results.append(DetectionResult(
                 rule_name=f"[Sigma] {match.rule_name}",
                 rule_id=match.rule_id,
                 triggered=True,
                 severity=self._map_sigma_severity(match.severity),
-                mitre_technique=match.mitre_technique,
-                mitre_tactic=match.mitre_tactic,
+                mitre_technique=technique,
+                mitre_tactic=tactic,
                 description=f"Sigma rule matched: {match.description}",
                 confidence=0.8,
                 reopen_window_hours=48,
@@ -139,7 +140,19 @@ class DetectionEngine:
             "informational": Severity.INFO,
         }.get(sigma_level.lower(), Severity.MEDIUM)
 
-
+    @staticmethod
+    def _adjust_logon_mapping(match, events):
+        """T1078 (Valid Accounts) needs a successful logon. A 'failed logon' rule
+        without any successful authentication in the data is credential access."""
+        technique, tactic = match.mitre_technique, match.mitre_tactic
+        if technique and technique.upper().startswith("T1078") and "failed" in match.rule_name.lower():
+            has_success = any(
+                e.event_type == "authentication" and e.status == "success" for e in events
+            )
+            if not has_success:
+                return "T1110", "Credential Access"
+        return technique, tactic
+    
     def run_ioc_checks(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
         """
         Checks every event's IPs and domains against the local IOC store.

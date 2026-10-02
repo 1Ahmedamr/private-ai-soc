@@ -113,6 +113,9 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
                                 evidence.source_ips, evidence.target_ips)
         from src.ai.guard import sanitize_ai_text
         summary = sanitize_ai_text(verdict.summary, " ".join(evidence.detection_descriptions), add_note=False)
-        return verdict.model_copy(update={"recommended_actions": actions, "summary": summary})
+        update = {"recommended_actions": actions, "summary": summary}
+        if evidence.attack_stage:
+            update["likely_attack_stage"] = evidence.attack_stage
+        return verdict.model_copy(update=update)
     except Exception:
         return None
