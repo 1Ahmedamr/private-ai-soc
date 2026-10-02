@@ -96,6 +96,12 @@ class IncidentEngine:
         deduped: dict[str, Incident] = {}
         for inc in resulting_incidents:
             deduped[inc.incident_id] = inc
+        from src.incidents.titling import strongest_title
+        for inc in deduped.values():
+            better = strongest_title(inc.detections, inc.title)
+            if better != inc.title:
+                inc.title = better
+                self.store.save(inc)
         return list(deduped.values())
 
     def _within_reopen_window(
