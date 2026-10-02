@@ -42,3 +42,17 @@ def test_different_destinations_grouped_separately():
     events_b = [make_conn_event(base + timedelta(seconds=i * 17), dst_ip="5.6.7.8", src_port=50000 + i) for i in range(6)]
     result = detect_c2_beacon(events_a + events_b, min_connections=5, max_interval_variance_ratio=0.15)
     assert result.triggered is True
+
+
+def test_multicast_destination_is_never_a_beacon():
+    from datetime import datetime, timedelta
+    from src.models.event_schema import NormalizedEvent, EventSource, EventType
+    from src.detection.rules.c2_beacon import detect_c2_beacon
+    base = datetime(2026, 9, 1, 10, 0, 0)
+    events = [
+        NormalizedEvent(timestamp=base + timedelta(seconds=i * 60), source=EventSource.ZEEK,
+                        event_type=EventType.NETWORK_CONNECTION, src_ip="10.0.0.5",
+                        dst_ip="224.0.0.252", src_port=40000 + i, dst_port=5355)
+        for i in range(8)
+    ]
+    assert detect_c2_beacon(events).triggered is False

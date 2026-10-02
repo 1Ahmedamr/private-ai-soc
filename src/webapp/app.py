@@ -289,6 +289,14 @@ def enrich():
 
     ioc = data["ioc"].strip()
     ioc_type = data.get("type", "ip")
+    if ioc_type == "ip":
+        import ipaddress
+        try:
+            addr = ipaddress.ip_address(ioc)
+        except ValueError:
+            return jsonify({"error": "Not a valid IP address."}), 400
+        if addr.is_private or addr.is_multicast or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+            return jsonify({"error": "Private/internal addresses are never sent to VirusTotal."}), 400
 
     if not os.environ.get("VT_API_KEY"):
         return jsonify({

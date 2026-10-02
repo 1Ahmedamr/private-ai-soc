@@ -88,7 +88,8 @@ def build_host_timeline(host_summary: dict, incidents: List[dict]) -> dict:
 
     span = ""
     if linked:
-        span = _human((_parse(linked[-1]["last_seen"]) - _parse(linked[0]["first_seen"])).total_seconds())
+        latest_end = max(_parse(i["last_seen"]) for i in linked)
+        span = _human((latest_end - _parse(linked[0]["first_seen"])).total_seconds())
 
     return {
         "victim_ip": host_summary.get("victim_ip", ""),

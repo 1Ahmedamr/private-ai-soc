@@ -86,90 +86,92 @@ def _extract_target_ip(incident) -> Optional[str]:
     return None
 
 
+_IPV4_RE = None
+
+
+def _involved_internal_ips(incident) -> set:
+    """Internal hosts an incident is actually ABOUT: the correlation-key IP, the
+    targets of alert events, and any IP named in its detection descriptions.
+    (Not every dst_ip of every correlated event - that would link a host to
+    everything its neighbour ever talked to.)"""
+    import ipaddress
+    import re
+    global _IPV4_RE
+    if _IPV4_RE is None:
+        _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+    candidates = set()
+    ck = incident.correlation_key
+    if ck.startswith("ip:"):
+        candidates.add(ck.split("ip:", 1)[1])
+    for e in incident.events:
+        if str(getattr(e.event_type, "value", e.event_type)) == "alert" and e.dst_ip:
+            candidates.add(e.dst_ip)
+    for d in incident.detections:
+        candidates.update(_IPV4_RE.findall(d.description or ""))
+
+    internal = set()
+    for ip in candidates:
+        try:
+            a = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if a.is_private and not (a.is_multicast or a.is_loopback or a.is_link_local or a.is_unspecified):
+            internal.add(ip)
+    return internal
+
+
 def correlate_by_host(incidents: list, window_hours: int = CORRELATION_WINDOW_HOURS) -> List[HostSummary]:
     """
-    Groups incidents by victim host within a rolling time window.
-    Returns one HostSummary per affected host.
+    Groups incidents by each internal host they involve (as source OR target)
+    within a time window. One incident can appear under several hosts.
     """
     if not incidents:
         return []
 
-    # Build a mapping: victim_ip -> list of incidents
     host_incidents: Dict[str, list] = {}
-
     for incident in incidents:
-        # Try to identify the victim/target
-        victim = None
+        hosts = _involved_internal_ips(incident)
+        if not hosts and incident.correlation_key.startswith("user:"):
+            hosts = {incident.correlation_key}
+        for h in hosts:
+            host_incidents.setdefault(h, []).append(incident)
 
-        # For Suricata alerts: destination IP is the victim
-        for event in incident.events[:10]:
-            if event.dst_ip and not _is_external(event.dst_ip):
-                victim = event.dst_ip
-                break
-
-        # For port scans: destination is the victim
-        if not victim and "scan" in incident.title.lower():
-            victim = _extract_target_ip(incident)
-
-        # Fall back: use correlation key as the identity
-        if not victim:
-            ck = incident.correlation_key
-            if ck.startswith("ip:"):
-                victim = ck.split("ip:", 1)[1]
-            elif ck.startswith("user:"):
-                victim = ck  # use user identity as grouping key
-
-        if victim:
-            host_incidents.setdefault(victim, []).append(incident)
-
+    severity_order = ["info", "low", "medium", "high", "critical"]
     summaries = []
-    for victim_ip, host_incs in host_incidents.items():
-        if len(host_incs) < 2:
-            continue  # single incident doesn't need a summary
-
-        # Sort by first_seen
+    for host, host_incs in host_incidents.items():
         host_incs.sort(key=lambda i: i.first_seen)
-
-        # Check time window — all must be within window_hours of first incident
-        first_time = host_incs[0].first_seen
-        window_end = first_time + timedelta(hours=window_hours)
+        window_end = host_incs[0].first_seen + timedelta(hours=window_hours)
         in_window = [i for i in host_incs if i.first_seen <= window_end]
-
         if len(in_window) < 2:
             continue
 
-        # Collect MITRE techniques and tactics across all incidents
-        all_techniques = []
-        all_tactics = []
+        techniques, tactics = [], []
         for inc in in_window:
             for t in inc.mitre_techniques:
-                if t not in all_techniques:
-                    all_techniques.append(t)
+                if t not in techniques:
+                    techniques.append(t)
             for d in inc.detections:
-                if d.mitre_tactic and d.mitre_tactic not in all_tactics:
-                    all_tactics.append(d.mitre_tactic)
+                if d.mitre_tactic and d.mitre_tactic not in tactics:
+                    tactics.append(d.mitre_tactic)
 
-        severity_order = ["info", "low", "medium", "high", "critical"]
-        highest_sev = max(
-            (i.severity for i in in_window),
-            key=lambda s: severity_order.index(s) if s in severity_order else 0,
-        )
-
+        first = in_window[0].first_seen
+        last = max(i.last_seen for i in in_window)
         summaries.append(HostSummary(
-            victim_ip=victim_ip,
+            victim_ip=host,
             victim_host=next((e.host for i in in_window for e in i.events[:5] if e.host), None),
             incident_ids=[i.incident_id for i in in_window],
-            first_seen=in_window[0].first_seen,
-            last_seen=in_window[-1].last_seen,
-            duration_minutes=round((in_window[-1].last_seen - in_window[0].first_seen).total_seconds() / 60, 1),
-            highest_severity=highest_sev,
+            first_seen=first,
+            last_seen=last,
+            duration_minutes=round((last - first).total_seconds() / 60, 1),
+            highest_severity=max((i.severity for i in in_window),
+                                 key=lambda s: severity_order.index(s) if s in severity_order else 0),
             highest_risk=max(i.risk_score for i in in_window),
-            mitre_techniques=all_techniques,
-            mitre_tactics=all_tactics,
+            mitre_techniques=techniques,
+            mitre_tactics=tactics,
             detection_names=[d.rule_name for i in in_window for d in i.detections],
             attack_stages=[d.mitre_tactic for i in in_window for d in i.detections if d.mitre_tactic],
         ))
-
     return summaries
 
 

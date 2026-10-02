@@ -7,6 +7,19 @@ from src.models.detection_schema import DetectionResult, Severity
 from src.mitre.techniques import get_technique
 
 
+def _is_non_c2_destination(ip) -> bool:
+    """Multicast, broadcast, loopback and link-local destinations (LLMNR, mDNS,
+    SSDP...) are periodic by design and are never C2 servers."""
+    import ipaddress
+    if not ip:
+        return False
+    try:
+        a = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return a.is_multicast or a.is_loopback or a.is_link_local or str(a) == "255.255.255.255"
+
+
 def detect_c2_beacon(
     events: List[NormalizedEvent],
     min_connections: int = 5,
@@ -26,7 +39,8 @@ def detect_c2_beacon(
     variance ratio 0.575 — legitimate traffic rarely sustains that regularity
     across 13+ sessions.
     """
-    conns = [e for e in events if e.event_type == EventType.NETWORK_CONNECTION]
+    conns = [e for e in events if e.event_type == EventType.NETWORK_CONNECTION
+             and not _is_non_c2_destination(e.dst_ip)]
 
     # Deduplicate: keep only first packet per TCP session (unique src_port)
     # This converts packet-level events into session-level events

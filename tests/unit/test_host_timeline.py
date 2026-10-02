@@ -63,3 +63,11 @@ def test_timeline_page_renders_from_session():
 def test_timeline_requires_auth():
     with app.test_client() as client:
         assert client.get("/timeline/1.2.3.4").status_code == 401
+
+
+def test_span_uses_latest_end_not_last_started_incident():
+    incidents = [
+        inc("A", "Long", "2022-12-14T19:00:00+00:00", "2022-12-14T22:00:00+00:00"),
+        inc("B", "Short", "2022-12-14T20:00:00+00:00", "2022-12-14T20:00:00+00:00"),
+    ]
+    assert build_host_timeline(HS, incidents)["span"] == "3h 0m"

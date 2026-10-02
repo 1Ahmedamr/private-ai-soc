@@ -1,9 +1,12 @@
 # src/ingestion/pcap_direct_parser.py
-# Simple, fast, single-process Scapy parser.
-# Multiprocessing was removed: pickling Scapy packets costs more than
-# the processing itself, making parallel parsing 10x SLOWER on macOS.
-# The real speed fix is below: we skip non-IP packets early and avoid
-# creating full NormalizedEvent objects until needed.
+# Single-process streaming Scapy parser (multiprocessing was 10x slower: pickling cost).
+#
+# conn_state semantics (mirrors Zeek closely enough for the scan/beacon rules):
+#   S0  - SYN with NO SYN-ACK ever seen for that flow (unanswered or RST-rejected)
+#   SF  - established flow (SYN answered by SYN-ACK), or any ACK/SYN-ACK packet
+#   REJ - RST packet
+# Why: labelling every bare SYN as S0 made ordinary successful connections
+# (e.g. AD traffic to ports 88/135/389/445) look like an unanswered port scan.
 
 from datetime import datetime, timezone
 from typing import List
@@ -17,13 +20,12 @@ def parse_pcap_direct(pcap_path: str) -> List[NormalizedEvent]:
         print("[Direct PCAP] scapy not installed")
         return []
 
-    events = []
+    events: List[NormalizedEvent] = []
+    syn_events = []          # (index into events, flow key) for bare SYNs
+    established = set()      # flow keys that received a SYN-ACK
     count = 0
 
     try:
-        # PcapReader streams packets one at a time instead of loading
-        # the entire PCAP into RAM - critical for large files.
-        # rdpcap loads everything at once; PcapReader uses O(1) memory.
         with PcapReader(pcap_path) as reader:
             for pkt in reader:
                 count += 1
@@ -36,19 +38,21 @@ def parse_pcap_direct(pcap_path: str) -> List[NormalizedEvent]:
                     if pkt.haslayer(TCP):
                         tcp = pkt[TCP]
                         flags = int(tcp.flags)
-                        if flags == 2:       # SYN only
+                        if flags == 2:                       # bare SYN
                             conn_state = "S0"
-                        elif flags == 18:    # SYN+ACK
+                            syn_events.append(
+                                (len(events), (ip.src, tcp.sport, ip.dst, tcp.dport)))
+                        elif (flags & 0x12) == 0x12:         # SYN+ACK: handshake answered
                             conn_state = "SF"
-                        elif flags & 4:      # RST bit set
+                            established.add((ip.dst, tcp.dport, ip.src, tcp.sport))
+                        elif flags & 4:                      # RST
                             conn_state = "REJ"
-                        elif flags & 16:     # ACK (established session)
+                        elif flags & 16:                     # ACK
                             conn_state = "SF"
                         else:
                             conn_state = "unknown"
                         events.append(NormalizedEvent(
-                            timestamp=ts,
-                            source=EventSource.ZEEK,
+                            timestamp=ts, source=EventSource.ZEEK,
                             event_type=EventType.NETWORK_CONNECTION,
                             src_ip=ip.src, dst_ip=ip.dst,
                             src_port=tcp.sport, dst_port=tcp.dport,
@@ -61,8 +65,7 @@ def parse_pcap_direct(pcap_path: str) -> List[NormalizedEvent]:
                     elif pkt.haslayer(UDP):
                         udp = pkt[UDP]
                         events.append(NormalizedEvent(
-                            timestamp=ts,
-                            source=EventSource.ZEEK,
+                            timestamp=ts, source=EventSource.ZEEK,
                             event_type=EventType.NETWORK_CONNECTION,
                             src_ip=ip.src, dst_ip=ip.dst,
                             src_port=udp.sport, dst_port=udp.dport,
@@ -76,5 +79,13 @@ def parse_pcap_direct(pcap_path: str) -> List[NormalizedEvent]:
         print(f"[Direct PCAP] Failed to read {pcap_path}: {e}")
         return []
 
-    print(f"[Direct PCAP] Extracted {len(events)} packet-level events from {count} packets in {pcap_path}")
+    # Second pass: a SYN whose flow later got a SYN-ACK was a successful connection.
+    answered = 0
+    for idx, key in syn_events:
+        if key in established:
+            events[idx] = events[idx].model_copy(update={"conn_state": "SF"})
+            answered += 1
+
+    print(f"[Direct PCAP] Extracted {len(events)} packet-level events from {count} packets "
+          f"in {pcap_path} ({answered}/{len(syn_events)} SYNs were answered)")
     return events

@@ -44,9 +44,23 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
     target_ips = []
     if incident.correlation_key.startswith("ip:"):
         source_ips = [incident.correlation_key.split("ip:")[1]]
-    for event in incident.events[:20]:
-        if event.dst_ip and event.dst_ip not in target_ips:
-            target_ips.append(event.dst_ip)
+    import ipaddress
+    import re
+    ip_re = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+    for d in incident.detections:
+        for ip in ip_re.findall(d.description or ""):
+            try:
+                a = ipaddress.ip_address(ip)
+            except ValueError:
+                continue
+            if a.is_multicast or a.is_loopback or a.is_link_local:
+                continue
+            if ip not in source_ips and ip not in target_ips:
+                target_ips.append(ip)
+    if not target_ips:  # fallback for detections that name no IPs
+        for event in incident.events[:20]:
+            if event.dst_ip and event.dst_ip not in target_ips:
+                target_ips.append(event.dst_ip)
 
     mitre_tactic = ""
     for d in incident.detections:
