@@ -48,7 +48,10 @@ def detect_c2_beacon(
     # With this: 19 sessions → 780s intervals → variance ratio 0.57 (detected)
     session_first: dict = {}
     for e in conns:
-        session_key = (e.src_ip, e.dst_ip, e.src_port)
+        # Sources with no source port (e.g. Sysmon) can't be grouped into sessions;
+        # treat each event as its own session instead of collapsing them all.
+        session_key = ((e.src_ip, e.dst_ip, e.src_port) if e.src_port is not None
+                       else (e.src_ip, e.dst_ip, e.timestamp))
         if session_key not in session_first:
             session_first[session_key] = e
 
@@ -78,7 +81,7 @@ def detect_c2_beacon(
                 rule_name="Possible C2 Beacon (Periodic Connections)",
                 rule_id="SOC-NET-001",
                 triggered=True,
-                severity=Severity.CRITICAL,
+                severity=Severity.CRITICAL if variance_ratio <= 0.15 else Severity.HIGH,
                 mitre_technique=technique.technique_id if technique else "T1071",
                 mitre_tactic=technique.tactic if technique else "Command and Control",
                 description=(
@@ -86,7 +89,7 @@ def detect_c2_beacon(
                     f"{len(group)} sessions, ~{mean(intervals):.0f}s intervals "
                     f"(variance ratio={variance_ratio:.2f})."
                 ),
-                confidence=0.7,
+                confidence=0.85 if variance_ratio <= 0.15 else 0.6,
                 reopen_window_hours=336,
             )
 

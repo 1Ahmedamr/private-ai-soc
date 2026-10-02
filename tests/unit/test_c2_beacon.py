@@ -56,3 +56,18 @@ def test_multicast_destination_is_never_a_beacon():
         for i in range(8)
     ]
     assert detect_c2_beacon(events).triggered is False
+
+
+def test_events_without_src_port_still_detected_as_beacon():
+    """Sysmon network events carry no source port; they must not collapse into one session."""
+    from datetime import datetime, timedelta
+    from src.models.event_schema import NormalizedEvent, EventSource, EventType
+    from src.detection.rules.c2_beacon import detect_c2_beacon
+    base = datetime(2026, 9, 1, 10, 0, 0)
+    events = [
+        NormalizedEvent(timestamp=base + timedelta(seconds=i * 180), source=EventSource.WINDOWS,
+                        event_type=EventType.NETWORK_CONNECTION, src_ip="10.0.42.15",
+                        dst_ip="185.220.101.5", dst_port=443)
+        for i in range(6)
+    ]
+    assert detect_c2_beacon(events).triggered is True
