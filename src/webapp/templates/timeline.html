@@ -77,6 +77,15 @@
   {% endfor %}
 </div>
 
+{% if tl.assessment.indicators %}
+<div class="section" style="margin-top:22px">
+  <h3>Campaign assessment</h3>
+  <ul>{% for i in tl.assessment.indicators %}<li>✓ {{ i }}</li>{% endfor %}</ul>
+  <p>{{ tl.assessment.text }}</p>
+  <p><strong>Confidence:</strong> {{ tl.assessment.confidence }} (network evidence only)</p>
+  <p class="note">{{ tl.assessment.attribution }}</p>
+</div>
+{% endif %}
 <p class="note" style="font-style:italic;margin-top:22px">
   Order reflects when each incident's detection window began (UTC). It shows observed sequence,
   not proven causation — validate relationships with endpoint and network telemetry before concluding.

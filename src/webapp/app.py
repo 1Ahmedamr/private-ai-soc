@@ -256,6 +256,8 @@ ANALYSIS CONTEXT:
         )
         response.raise_for_status()
         answer = response.json()["response"].strip()
+        from src.ai.guard import sanitize_ai_text
+        answer = sanitize_ai_text(answer)
     except Exception as e:
         return jsonify({"error": f"AI unavailable: {str(e)[:100]}"}), 503
 

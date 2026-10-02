@@ -111,6 +111,8 @@ def investigate(evidence: InvestigationEvidence, model: str = "qwen3:8b") -> Opt
         from src.ai.actions import build_actions
         actions = build_actions(evidence.detection_descriptions,
                                 evidence.source_ips, evidence.target_ips)
-        return verdict.model_copy(update={"recommended_actions": actions})
+        from src.ai.guard import sanitize_ai_text
+        summary = sanitize_ai_text(verdict.summary, " ".join(evidence.detection_descriptions), add_note=False)
+        return verdict.model_copy(update={"recommended_actions": actions, "summary": summary})
     except Exception:
         return None

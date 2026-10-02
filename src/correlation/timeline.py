@@ -13,6 +13,7 @@ All timestamps are normalized to UTC for display.
 
 from datetime import datetime, timezone
 from typing import List, Optional
+from src.correlation.assessment import build_assessment
 
 
 def _parse(ts: str) -> datetime:
@@ -98,4 +99,5 @@ def build_host_timeline(host_summary: dict, incidents: List[dict]) -> dict:
         "highest_severity": _sev(host_summary.get("highest_severity", "low")),
         "tactics_in_order": ordered_tactics,
         "entries": entries,
+        "assessment": build_assessment(entries, host_summary.get("victim_ip", "")),
     }
