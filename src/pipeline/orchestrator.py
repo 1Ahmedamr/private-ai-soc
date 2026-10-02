@@ -46,7 +46,21 @@ class PipelineOrchestrator:
         since = latest_event_time - timedelta(hours=HISTORY_LOOKBACK_HOURS)
         full_history = self.event_store.get_events_by_correlation_key(correlation_key, since=since)
 
-        detections = self.detection_engine.analyze(full_history)
+        # The correlation key (e.g. user:administrator) can exclude events from the
+        # same batch that have no user, such as 7045 service installs. Detection
+        # should still see them when they come from a host already in the history.
+        def _event_id(e):
+            return (e.timestamp, e.source, e.event_id, e.host, e.user, e.src_ip, e.dst_ip, e.command)
+
+        known = {_event_id(e) for e in full_history}
+        known_hosts = {e.host for e in full_history if e.host}
+        same_host_extras = [
+            e for e in new_events
+            if e.host in known_hosts and _event_id(e) not in known
+        ]
+        detection_events = sorted(full_history + same_host_extras, key=lambda e: e.timestamp)
+
+        detections = self.detection_engine.analyze(detection_events)
 
 
         # Determine criticality from whatever host/ip appears in the
