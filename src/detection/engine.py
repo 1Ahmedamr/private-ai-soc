@@ -14,7 +14,7 @@ from src.detection.rules.c2_beacon import detect_c2_beacon
 from src.sigma.loader import get_sigma_index
 from src.sigma.evaluator import SigmaMatch
 from src.threat_intel.ioc_store import get_ioc_store
-
+from src.detection.rules.windows_persistence import detect_windows_persistence
 
 class DetectionEngine:
     def __init__(self):
@@ -63,6 +63,9 @@ class DetectionEngine:
         if c2_result.triggered:
             results.append(c2_result)
 
+        
+        results.extend(detect_windows_persistence(events))
+        
         return results
 
     def analyze(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
@@ -77,33 +80,52 @@ class DetectionEngine:
         return all_results
 
     
+    # Sigma rules that match a single event but only mean something in volume.
+    # key (rule id or rule name) -> minimum matching events before reporting.
+    _SIGMA_MIN_MATCHES = {
+        "bf532b66-5a9d-4b4a-b3d4-7c8e5f3a2d1c": 5,
+        "Multiple Failed Logon Attempts (Brute Force)": 5,
+    }
+
     def run_sigma_rules(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
         """
         Evaluates Sigma rules using the pre-built source index.
         Each event only runs against rules for its specific log source,
-        not all rules — this is the critical optimization for large PCAPs.
+        not all rules - this is the critical optimization for large PCAPs.
+        Count-based rules (see _SIGMA_MIN_MATCHES) only report once enough
+        events matched.
         """
         index = get_sigma_index()
-        results = []
-        seen_rule_ids = set()
+        first_match = {}
+        match_count = {}
 
         for event in events:
-            relevant_rules = index.get_rules_for_source(event.source, event.event_type)
-            for rule in relevant_rules:
+            for rule in index.get_rules_for_source(event.source, event.event_type):
                 match = rule.evaluate(event)
-                if match and match.rule_id not in seen_rule_ids and match.severity not in ("low", "informational"):
-                    seen_rule_ids.add(match.rule_id)
-                    results.append(DetectionResult(
-                        rule_name=f"[Sigma] {match.rule_name}",
-                        rule_id=match.rule_id,
-                        triggered=True,
-                        severity=self._map_sigma_severity(match.severity),
-                        mitre_technique=match.mitre_technique,
-                        mitre_tactic=match.mitre_tactic,
-                        description=f"Sigma rule matched: {match.description}",
-                        confidence=0.8,
-                        reopen_window_hours=48,
-                    ))
+                if not match or match.severity in ("low", "informational"):
+                    continue
+                match_count[match.rule_id] = match_count.get(match.rule_id, 0) + 1
+                first_match.setdefault(match.rule_id, match)
+
+        results = []
+        for rule_id, match in first_match.items():
+            needed = max(
+                self._SIGMA_MIN_MATCHES.get(rule_id, 1),
+                self._SIGMA_MIN_MATCHES.get(match.rule_name, 1),
+            )
+            if match_count[rule_id] < needed:
+                continue
+            results.append(DetectionResult(
+                rule_name=f"[Sigma] {match.rule_name}",
+                rule_id=match.rule_id,
+                triggered=True,
+                severity=self._map_sigma_severity(match.severity),
+                mitre_technique=match.mitre_technique,
+                mitre_tactic=match.mitre_tactic,
+                description=f"Sigma rule matched: {match.description}",
+                confidence=0.8,
+                reopen_window_hours=48,
+            ))
         return results
 
     @staticmethod

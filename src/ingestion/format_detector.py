@@ -40,6 +40,20 @@ def detect_format(file_path: str, original_filename: str) -> SupportedFormat:
     return "unknown"
 
 
+
+def _looks_like_windows(obj) -> bool:
+    """Windows event: numeric event_id plus at least one Windows-style field."""
+    if not isinstance(obj, dict):
+        return False
+    if not str(obj.get("event_id", "")).isdigit():
+        return False
+    return any(
+        k in obj
+        for k in ("username", "user", "computer", "host",
+                  "service_name", "task_name", "process_name")
+    )
+
+
 def _sniff_json_format(file_path: str) -> SupportedFormat:
     """Read first valid JSON object to identify source."""
     try:
@@ -52,7 +66,7 @@ def _sniff_json_format(file_path: str) -> SupportedFormat:
         else:
             first_obj = json.loads(content.split("\n")[0])
 
-        if "event_id" in first_obj and "username" in first_obj:
+        if _looks_like_windows(first_obj):
             return "windows_json"
         if "action" in first_obj and first_obj.get("action") in ("failed_password", "accepted_password"):
             return "linux_ssh_json"
