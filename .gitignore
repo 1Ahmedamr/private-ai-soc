@@ -58,3 +58,4 @@ data/sigma_rules/network/builtin/
 data/ioc/feodo_tracker.json
 PROJECT_SNAPSHOT*.txt
 .flask_secret
+PROJECT_SNAPSHOT*.txt
