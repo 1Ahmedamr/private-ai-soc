@@ -34,3 +34,19 @@ environment variables before running:
 If unset, defaults to username "analyst" / password "changeme" - this
 default is for local development convenience ONLY and must be changed
 before exposing the dashboard on any shared network.
+
+## MITRE ATT&CK dataset (recommended)
+
+The full ATT&CK dataset (about 48 MB) is not committed to git. Without it, only
+7 built-in techniques resolve and the app prints a warning at startup.
+
+```bash
+mkdir -p data/mitre
+curl -L -o data/mitre/enterprise-attack.json \
+  https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json
+python3 -c "from src.mitre.import_dataset import load_full_mitre_dataset as l; print(len(l()), 'techniques')"
+```
+
+That URL always serves the newest release. To pin a version (tactic names change
+between releases), download a versioned file such as `enterprise-attack-18.0.json`
+from the same folder and save it under the name above.
