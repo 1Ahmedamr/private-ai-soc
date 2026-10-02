@@ -168,6 +168,7 @@ def chat():
         f"Events parsed: {analysis['events_parsed']}",
         f"Incidents found: {len(analysis['incidents'])}",
     ]
+    guard_evidence = []  # detection text only, used to check the model's claims
 
     for inc in analysis["incidents"]:
         context_parts.append(
@@ -181,6 +182,7 @@ def chat():
         )
         for d in inc["detections"]:
             context_parts.append(f"  Detection: {d['rule_name']} - {d['description']}")
+            guard_evidence.append(f"{d['rule_name']} {d['description']}")
         if inc.get("key_events"):
             context_parts.append(f"  Raw events ({len(inc['key_events'])} shown):")
             for e in inc["key_events"]:
@@ -188,6 +190,8 @@ def chat():
                 if e.get("timestamp"): parts.append(f"time={e['timestamp']}")
                 if e.get("src_ip"): parts.append(f"src_ip={e['src_ip']}")
                 if e.get("dst_ip"): parts.append(f"dst_ip={e['dst_ip']}")
+                if e.get("event_id"): parts.append(f"event_id={e['event_id']}")
+                if e.get("host"): parts.append(f"host={e['host']}")
                 if e.get("user"): parts.append(f"user={e['user']}")
                 if e.get("status"): parts.append(f"status={e['status']}")
                 context_parts.append(f"    event: {' | '.join(parts)}")
@@ -207,9 +211,9 @@ def chat():
     system_prompt = f"""You are a SOC analyst assistant. Your answers must follow this exact structure:
 
 **OBSERVED FACTS** (only what the evidence explicitly states):
-- State what signatures matched, how many times, between which IPs
+- State which detections fired (rule names), how many times, and the hosts, users and IPs involved
 - State exact timestamps from the evidence verbatim
-- State packet counts and port counts from the evidence
+- State packet counts and port counts only if the evidence contains them
 
 **POSSIBLE INTERPRETATION** (clearly labeled as hypothesis, not fact):
 - What this activity MIGHT indicate
@@ -219,6 +223,8 @@ def chat():
 - What to investigate next
 
 HARD RULES — violation is a serious error:
+- For Windows evidence, the machine in host= is the AFFECTED host where the activity ran. Never call it the "source host". The source of failed logons is the src_ip on those events.
+- NEVER mention reconnaissance, credential stuffing, password spraying, lateral movement or exfiltration unless the evidence text states it
 - NEVER say "attacker" — say "source host" or "source IP"
 - NEVER say "compromised" or "persistence achieved" or "exfiltration" from IDS signatures alone
 - NEVER say "DLL specifically" when the rule says "EXE or DLL" — copy the rule name exactly
@@ -257,7 +263,7 @@ ANALYSIS CONTEXT:
         response.raise_for_status()
         answer = response.json()["response"].strip()
         from src.ai.guard import sanitize_ai_text
-        answer = sanitize_ai_text(answer)
+        answer = sanitize_ai_text(answer, " ".join(guard_evidence))
     except Exception as e:
         return jsonify({"error": f"AI unavailable: {str(e)[:100]}"}), 503
 

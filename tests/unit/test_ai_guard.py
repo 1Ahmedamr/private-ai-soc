@@ -51,3 +51,14 @@ def test_informational_signature_sentence_removed_for_windows_evidence():
 def test_informational_signature_kept_for_et_info_evidence():
     out = sanitize_ai_text("Informational signature matched twice.", "ET INFO Something", add_note=False)
     assert "Informational signature matched" in out
+
+
+def test_newlines_and_bullets_are_preserved():
+    text = "**POSSIBLE INTERPRETATION**\n- Task created.\n- Could indicate lateral movement.\n- Review the task."
+    out = sanitize_ai_text(text, WINDOWS_EVIDENCE, add_note=False)
+    assert out == "**POSSIBLE INTERPRETATION**\n- Task created.\n- Review the task."
+
+
+def test_credential_stuffing_claim_removed_without_evidence():
+    out = sanitize_ai_text("Failed logons were seen. This may be credential stuffing.", WINDOWS_EVIDENCE, add_note=False)
+    assert "stuffing" not in out and "Failed logons were seen" in out

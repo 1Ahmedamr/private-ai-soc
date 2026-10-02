@@ -19,6 +19,7 @@ _UNSUPPORTED_CLAIMS = [
     (re.compile(r"\bexfiltrat\w*|\bdata theft\b|\bstole\w*|\bstolen\b", re.I), re.compile(r"exfil|upload|data transfer|\bstole|\bstolen", re.I)),
     (re.compile(r"\bransomware\b", re.I), re.compile(r"ransom|encrypt", re.I)),
     (re.compile(r"\breconnaissance\b", re.I), re.compile(r"scan|recon|enumerat|discovery|probe", re.I)),
+    (re.compile(r"credential stuffing|password spray\w*", re.I), re.compile(r"spray|stuffing", re.I)),
 ]
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
@@ -26,24 +27,34 @@ NOTE = ("\n\n[Wording adjusted: this tool cannot determine attacker/victim roles
         "confirmed compromise from alerts alone. Containment is not recommended until the alert is validated.]")
 
 
+def _filter_sentences(text: str, keep) -> str:
+    """Keep only sentences for which keep(sentence) is True, line by line, so
+    markdown bullets and line breaks survive. If nothing at all would be left,
+    the original text is returned."""
+    out, kept_any = [], False
+    for line in text.split("\n"):
+        if not line.strip():
+            out.append(line)
+            continue
+        kept = [s for s in _SENTENCE_SPLIT.split(line) if keep(s)]
+        if kept:
+            out.append(" ".join(kept))
+            kept_any = True
+    return "\n".join(out) if kept_any else text
+
+
 def drop_unsupported_claims(text: str, evidence_text: str) -> str:
-    """Remove sentences that assert something the evidence never mentions.
-    If every sentence would be removed, the original text is kept."""
+    """Remove sentences that assert something the evidence never mentions."""
     if not evidence_text:
         return text
-    kept = []
-    for sentence in _SENTENCE_SPLIT.split(text.strip()):
-        unsupported = any(
+
+    def supported(sentence: str) -> bool:
+        return not any(
             claim.search(sentence) and not support.search(evidence_text)
             for claim, support in _UNSUPPORTED_CLAIMS
         )
-        if not unsupported:
-            kept.append(sentence)
-    return " ".join(kept) if kept else text
 
-def _drop_sentences_starting(text: str, prefix: str) -> str:
-    kept = [s for s in _SENTENCE_SPLIT.split(text.strip()) if not s.strip().lower().startswith(prefix)]
-    return " ".join(kept) if kept else text
+    return _filter_sentences(text, supported)
 
 
 def sanitize_ai_text(text: str, evidence_text: str = "", add_note: bool = True) -> str:
@@ -59,6 +70,8 @@ def sanitize_ai_text(text: str, evidence_text: str = "", add_note: bool = True) 
         text = re.sub(r"\s*Informational signature matched\.?", "", text, flags=re.I)
     # Also wrong when the evidence has no ET INFO signature at all (e.g. Windows logs).
     elif evidence_text and "ET INFO" not in evidence_text:
-        text = _drop_sentences_starting(text, "informational signature matched")
+        text = _filter_sentences(
+            text, lambda s: not s.strip().lower().startswith("informational signature matched")
+        )
     text = drop_unsupported_claims(text, evidence_text)
     return text + NOTE if (changed and add_note) else text
