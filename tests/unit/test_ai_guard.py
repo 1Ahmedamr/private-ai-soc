@@ -37,3 +37,17 @@ def test_text_is_kept_if_every_sentence_would_be_removed():
 def test_existing_word_replacements_still_work():
     out = sanitize_ai_text("The attacker used a compromised host.", add_note=False)
     assert "attacker" not in out.lower() and "potentially affected host" in out
+
+
+def test_informational_signature_sentence_removed_for_windows_evidence():
+    text = ("Observed facts: a task was created. "
+            "Informational signature matched for failed logons from a public IP. "
+            "Interpretation: possible persistence.")
+    out = sanitize_ai_text(text, WINDOWS_EVIDENCE, add_note=False)
+    assert "Informational signature" not in out
+    assert "a task was created" in out and "Interpretation" in out
+
+
+def test_informational_signature_kept_for_et_info_evidence():
+    out = sanitize_ai_text("Informational signature matched twice.", "ET INFO Something", add_note=False)
+    assert "Informational signature matched" in out

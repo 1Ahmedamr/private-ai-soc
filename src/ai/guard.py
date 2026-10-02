@@ -41,6 +41,10 @@ def drop_unsupported_claims(text: str, evidence_text: str) -> str:
             kept.append(sentence)
     return " ".join(kept) if kept else text
 
+def _drop_sentences_starting(text: str, prefix: str) -> str:
+    kept = [s for s in _SENTENCE_SPLIT.split(text.strip()) if not s.strip().lower().startswith(prefix)]
+    return " ".join(kept) if kept else text
+
 
 def sanitize_ai_text(text: str, evidence_text: str = "", add_note: bool = True) -> str:
     changed = False
@@ -53,5 +57,8 @@ def sanitize_ai_text(text: str, evidence_text: str = "", add_note: bool = True) 
     # "Informational signature matched" is a prompt artefact; it is wrong on ET MALWARE/TROJAN.
     if re.search(r"ET (MALWARE|TROJAN)", evidence_text or ""):
         text = re.sub(r"\s*Informational signature matched\.?", "", text, flags=re.I)
+    # Also wrong when the evidence has no ET INFO signature at all (e.g. Windows logs).
+    elif evidence_text and "ET INFO" not in evidence_text:
+        text = _drop_sentences_starting(text, "informational signature matched")
     text = drop_unsupported_claims(text, evidence_text)
     return text + NOTE if (changed and add_note) else text
