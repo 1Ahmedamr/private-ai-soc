@@ -7,6 +7,7 @@ from src.mitre.models import MitreTechnique
 from src.mitre.naming import format_tactic
 
 DATASET_PATH = Path("data/mitre/enterprise-attack.json")
+_WARNED = {"missing": False}
 
 
 def load_full_mitre_dataset() -> Dict[str, MitreTechnique]:
@@ -18,6 +19,11 @@ def load_full_mitre_dataset() -> Dict[str, MitreTechnique]:
     is extracting just that from a much larger structure.
     """
     if not DATASET_PATH.exists():
+        if not _WARNED["missing"]:
+            _WARNED["missing"] = True
+            print(f"[MITRE] ATT&CK dataset not found at {DATASET_PATH}; "
+                  "falling back to the 7 built-in techniques. "
+                  "See docs/KNOWN_LIMITATIONS.md.")
         return {}
 
     with open(DATASET_PATH) as f:

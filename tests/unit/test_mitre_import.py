@@ -18,3 +18,11 @@ def test_missing_dataset_file_returns_empty_dict_not_crash():
 
 def test_unknown_technique_returns_none():
     assert get_technique("T9999.999") is None
+
+def test_missing_dataset_warns_once(monkeypatch, capsys, tmp_path):
+    import src.mitre.import_dataset as m
+    monkeypatch.setattr(m, "DATASET_PATH", tmp_path / "nope.json")
+    monkeypatch.setitem(m._WARNED, "missing", False)
+    assert m.load_full_mitre_dataset() == {}
+    assert m.load_full_mitre_dataset() == {}
+    assert capsys.readouterr().out.count("ATT&CK dataset not found") == 1

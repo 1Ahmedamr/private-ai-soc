@@ -57,3 +57,9 @@ See `docs/ARCHITECTURE.md`
 
 ## Status
 V1 complete. See `docs/ROADMAP.md` for what's built vs. planned.
+
+See [Known limitations](docs/KNOWN_LIMITATIONS.md).
+
+See [Known limitations](docs/KNOWN_LIMITATIONS.md).
+
+See [Known limitations](docs/KNOWN_LIMITATIONS.md).
