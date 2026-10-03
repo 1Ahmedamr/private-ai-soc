@@ -8,6 +8,7 @@ from src.correlation.host_engine import correlate_by_host, generate_narrative, H
 from src.models.event_schema import NormalizedEvent
 from src.models.incident_schema import Incident
 from src.ingestion.format_detector import detect_format
+from src.incidents.correlation_key import extract_correlation_key
 from src.ingestion.windows_parser import parse_windows_events
 from src.ingestion.linux_parser import parse_linux_ssh_events
 from src.ingestion.zeek_parser import parse_zeek_conn_logs
@@ -126,7 +127,7 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
         result.errors.append(
             f"Could not recognize the format of '{original_filename}'. "
             f"Supported: Windows Event JSON, Linux SSH JSON, Zeek conn.log JSON, "
-            f"Suricata EVE JSON, firewall text logs, PCAP files."
+            f"Suricata EVE JSON, firewall text logs, Excel exports (.xlsx/.xls), PCAP files."
         )
         return result
 
@@ -137,7 +138,8 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
         return result
 
     if not events:
-        result.parse_warning = f"File was recognized as {fmt} but produced no parseable events."
+        if not (fmt == "excel" and result.parse_warning):
+            result.parse_warning = f"File was recognized as {fmt} but produced no parseable events."
         return result
 
     result.events_parsed = len(events)
@@ -145,6 +147,8 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
     orchestrator = PipelineOrchestrator(EventStore(), IncidentStore(), _load_asset_inventory())
     if fmt == "pcap":
         incidents = orchestrator.ingest_pcap(file_path)
+    elif fmt == "excel":
+        incidents = _ingest_by_actor(orchestrator, events, result)
     else:
         incidents = orchestrator.ingest(events)
     result.incidents = incidents
@@ -160,10 +164,51 @@ def analyze_file(file_path: str, original_filename: str) -> AnalysisResult:
     return result
 
 
+MAX_ACTOR_GROUPS = 500
+
+
+def _ingest_by_actor(orchestrator, events: List[NormalizedEvent], result: AnalysisResult) -> list:
+    """
+    A spreadsheet export mixes many hosts, but ingest() only analyses the identity of
+    the first event. Split by identity first (same idea as the PCAP path) and cap the
+    number of groups so a huge export cannot run for minutes.
+    """
+    groups: dict = {}
+    for event in events:
+        groups.setdefault(extract_correlation_key([event]), []).append(event)
+
+    ordered = sorted(groups.values(), key=len, reverse=True)
+    if len(ordered) > MAX_ACTOR_GROUPS:
+        note = f"Analysed the {MAX_ACTOR_GROUPS} busiest of {len(ordered)} sources; the rest were skipped."
+        result.parse_warning = f"{result.parse_warning} {note}" if result.parse_warning else note
+        ordered = ordered[:MAX_ACTOR_GROUPS]
+
+    incidents: list = []
+    for group in ordered:
+        incidents.extend(orchestrator.ingest(group))
+    return incidents
+
+
 def _parse_by_format(file_path: str, fmt: str, result: AnalysisResult) -> List[NormalizedEvent]:
     if fmt == "pcap":
         from src.pipeline.pcap_processor import process_pcap
         return process_pcap(file_path)
+
+    if fmt == "excel":
+        from src.ingestion.excel_parser import parse_excel_with_report
+        events, report = parse_excel_with_report(file_path)
+        if not events:
+            reason = report.errors[0] if report.errors else (
+                "; ".join(f"sheet '{name}': {why}" for name, why in report.sheets_skipped)
+                or "no usable rows found"
+            )
+            result.parse_warning = f"Excel file recognized but no events could be read ({reason})."
+        elif report.timestamp_fallbacks:
+            result.parse_warning = (
+                f"{report.timestamp_fallbacks} row(s) had unreadable timestamps and "
+                f"borrowed the nearest valid one."
+            )
+        return events
 
     with open(file_path) as f:
         content = f.read()

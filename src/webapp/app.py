@@ -21,7 +21,7 @@ load_dotenv()
 
 DB_PATH = "data/processed/soc_incidents.db"
 UPLOAD_FOLDER = "data/uploads"
-ALLOWED_EXTENSIONS = {".json", ".log", ".txt", ".pcap", ".pcapng", ".cap"}
+ALLOWED_EXTENSIONS = {".json", ".log", ".txt", ".pcap", ".pcapng", ".cap", ".xlsx", ".xlsm", ".xls"}
 
 app = Flask(__name__)
 # Secret key must be STABLE across restarts — os.urandom() changes on

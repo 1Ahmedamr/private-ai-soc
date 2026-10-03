@@ -44,3 +44,9 @@ def test_detects_firewall_text_by_content():
     path = write_temp(content, ".log")
     assert detect_format(path, "firewall.log") == "firewall_text"
     os.unlink(path)
+
+def test_detects_excel_by_extension(tmp_path):
+    from src.ingestion.format_detector import detect_format
+    path = tmp_path / "export.xlsx"
+    path.write_bytes(b"PK\x03\x04")
+    assert detect_format(str(path), "export.xlsx") == "excel"

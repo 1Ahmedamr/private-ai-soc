@@ -11,6 +11,8 @@ SupportedFormat = Literal[
     "suricata_eve_json",
     "firewall_text",
     "pcap",
+    "excel",
+    "sysmon_json",
     "unknown",
 ]
 
@@ -30,6 +32,9 @@ def detect_format(file_path: str, original_filename: str) -> SupportedFormat:
 
     if ext in (".pcap", ".pcapng", ".cap"):
         return "pcap"
+
+    if ext in (".xlsx", ".xlsm", ".xls"):
+        return "excel"
 
     if ext == ".json":
         return _sniff_json_format(file_path)
