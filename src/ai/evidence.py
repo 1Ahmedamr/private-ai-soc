@@ -23,6 +23,8 @@ class InvestigationEvidence(BaseModel):
     source_ips: list = []
     target_ips: list = []
     attack_stage: str = ""
+    affected_hosts: list = []
+    accounts: list = []
 
 
 # Most advanced stage first, used to order the stages shown to the analyst.
@@ -75,6 +77,21 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
     import ipaddress
     import re
     ip_re = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+    affected_hosts, accounts = [], []
+    for event in incident.events[:200]:
+        if event.host and event.host not in affected_hosts:
+            affected_hosts.append(event.host)
+        if event.user and event.user not in accounts:
+            accounts.append(event.user)
+        # user/host-keyed incidents (logons, process events) have no IP key; use the IPs recorded on the events
+        if not incident.correlation_key.startswith("ip:") and event.src_ip and event.src_ip not in source_ips:
+            try:
+                parsed = ipaddress.ip_address(event.src_ip)
+            except ValueError:
+                continue
+            if not (parsed.is_multicast or parsed.is_loopback or parsed.is_link_local) and len(source_ips) < 3:
+                source_ips.append(event.src_ip)
     for d in incident.detections:
         for ip in ip_re.findall(d.description or ""):
             try:

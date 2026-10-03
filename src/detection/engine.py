@@ -15,6 +15,7 @@ from src.sigma.loader import get_sigma_index
 from src.sigma.evaluator import SigmaMatch
 from src.threat_intel.ioc_store import get_ioc_store
 from src.detection.rules.windows_persistence import detect_windows_persistence
+from src.detection.rules.success_after_failures import detect_success_after_failures
 
 class DetectionEngine:
     def __init__(self):
@@ -65,6 +66,10 @@ class DetectionEngine:
 
         
         results.extend(detect_windows_persistence(events))
+
+        success_after_failures = detect_success_after_failures(events)
+        if success_after_failures.triggered:
+            results.append(success_after_failures)
         
         return results
 

@@ -47,19 +47,29 @@ def _decode_encoded_command(text: str) -> Optional[str]:
     return None
 
 
-def _windows_actions(text: str, low: str, peer: Optional[str]) -> List[str]:
+def _windows_actions(
+    text: str,
+    low: str,
+    peer: Optional[str],
+    known_hosts: Optional[List[str]] = None,
+    known_users: Optional[List[str]] = None,
+) -> List[str]:
     """Actions for Windows evidence: failed logons, encoded PowerShell, persistence."""
     actions: List[str] = []
-    hosts = _WIN_HOST_RE.findall(text)
-    users = _WIN_USER_RE.findall(text)
+    hosts = _WIN_HOST_RE.findall(text) or list(known_hosts or [])
+    users = _WIN_USER_RE.findall(text) or list(known_users or [])
     win_host = hosts[0] if hosts else None
     win_user = users[0] if users else None
     where = f" on {win_host}" if win_host else ""
     who = f" for '{win_user}'" if win_user else ""
+    origin = f" from {peer}" if peer else ""
 
-    failed_logons = any(k in low for k in ("failed logon", "failed windows logon", "brute force"))
-    if failed_logons:
-        origin = f" from {peer}" if peer else ""
+    if "successful logon (user" in low:
+        actions.append(
+            f"A successful logon{who}{origin} follows the failed attempts. Confirm with the account owner that it was "
+            f"legitimate; if not, reset the credentials, end active sessions and review what the account did{where}."
+        )
+    elif any(k in low for k in ("failed logon", "failed windows logon", "brute force")):
         actions.append(
             f"Search the Security log for a successful logon (Event ID 4624){who}{origin} "
             f"after the failed attempts{where}. Failed logons alone do not show the account was accessed."
@@ -90,7 +100,13 @@ def _windows_actions(text: str, low: str, peer: Optional[str]) -> List[str]:
     return actions
 
 
-def build_actions(descriptions: List[str], source_ips: List[str], target_ips: List[str]) -> List[str]:
+def build_actions(
+    descriptions: List[str],
+    source_ips: List[str],
+    target_ips: List[str],
+    hosts: Optional[List[str]] = None,
+    users: Optional[List[str]] = None,
+) -> List[str]:
     text = " ".join(descriptions or [])
     low = text.lower()
     ips = []
@@ -105,7 +121,7 @@ def build_actions(descriptions: List[str], source_ips: List[str], target_ips: Li
 
     actions: List[str] = []
 
-    actions.extend(_windows_actions(text, low, peer))
+    actions.extend(_windows_actions(text, low, peer, hosts, users))
 
     if host and peer and any(k in low for k in ("beacon", "periodic", "backconnect", "cnc", "c2")):
         actions.append(f"Extract all flows between {host} and {peer}; measure interval, jitter and byte counts to confirm or rule out beaconing.")

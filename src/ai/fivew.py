@@ -101,6 +101,28 @@ def _related(inc: dict, analysis: dict):
     return list(dict.fromkeys(out))
 
 
+_ENDPOINT_SOURCES = {"windows", "linux"}
+
+
+def _key_events(inc: dict):
+    return inc.get("key_events", []) or []
+
+
+def _is_endpoint(inc: dict) -> bool:
+    """True when the evidence is host log data (Windows / Linux) rather than network traffic."""
+    names = {str(e.get("source", "")).lower().split(".")[-1] for e in _key_events(inc) if e.get("source")}
+    return bool(names & _ENDPOINT_SOURCES)
+
+
+def _event_values(inc: dict, field: str, limit: int = 5):
+    out = []
+    for e in _key_events(inc):
+        value = e.get(field)
+        if value and value not in out:
+            out.append(value)
+    return out[:limit]
+
+
 def build_5w(inc: dict, analysis: dict = None) -> str:
     from src.ai.actions import build_actions
     analysis = analysis or {}
@@ -112,17 +134,30 @@ def build_5w(inc: dict, analysis: dict = None) -> str:
     others = _others(inc, shown)
     techs = _technique_names(inc.get("mitre_techniques", []))
     info_only = bool(descs) and all("ET INFO" in d for d in descs)
+    endpoint = _is_endpoint(inc)
+    hosts = _event_values(inc, "host")
+    accounts = _event_values(inc, "user")
 
     L = [f"5Ws SUMMARY - {inc.get('incident_id', '')} - {inc.get('title', '')}",
          f"Severity: {sev.upper()} | Risk: {inc.get('risk_score')}/100", "", "WHO"]
+    if endpoint:
+        if hosts:
+            L.append("- Affected host(s): " + ", ".join(hosts))
+        if accounts:
+            L.append("- Account(s): " + ", ".join(accounts))
     if src:
         L.append(f"- Source IP (as recorded by the detection): {src} ({_scope(src)})")
     if dst:
         L.append(f"- Destination IP (as recorded by the detection): {dst} ({_scope(dst)})")
     if others:
-        L.append("- Other hosts in this evidence: " + ", ".join(f"{ip} ({_scope(ip)})" for ip in others))
-    L.append("- Source/destination describe traffic direction only. Which host initiated the activity, "
-             "or acted as source or target of an attack, is not determined from this evidence.")
+        label_ips = "IP addresses recorded in the events" if endpoint else "Other hosts in this evidence"
+        L.append(f"- {label_ips}: " + ", ".join(f"{ip} ({_scope(ip)})" for ip in others))
+    if endpoint:
+        L.append("- Host, account and IP come from the log fields; who or what is behind them is "
+                 "not determined from this evidence.")
+    else:
+        L.append("- Source/destination describe traffic direction only. Which host initiated the activity, "
+                 "or acted as source or target of an attack, is not determined from this evidence.")
 
     L += ["", "WHAT"]
     L += [f"- {x[:240]}" for x in descs] or ["- No detection text recorded."]
@@ -132,24 +167,34 @@ def build_5w(inc: dict, analysis: dict = None) -> str:
     L += ["", "WHEN", f"- First seen: {_fmt(inc['first_seen'])}", f"- Last seen: {_fmt(inc['last_seen'])}",
           f"- Duration: {_duration(inc['first_seen'], inc['last_seen'])}"]
 
-    L += ["", "WHERE", "- Network capture only. No process, host or file telemetry was captured."]
+    if endpoint:
+        types = sorted({str(e.get("event_type", "")).split(".")[-1].replace("_", " ")
+                        for e in _key_events(inc) if e.get("event_type")})
+        L += ["", "WHERE", "- Evidence type: host log events" + (f" ({', '.join(types)})." if types else ".")]
+    else:
+        L += ["", "WHERE", "- Network capture only. No process, host or file telemetry was captured."]
     rel = _related(inc, analysis)
     if rel:
         L.append("- Same host also appears in: " + "; ".join(rel))
 
-    L += ["", "WHY / HOW", "- Not determinable from network alerts alone."]
+    L += ["", "WHY / HOW",
+          "- Not determinable from these log events alone." if endpoint
+          else "- Not determinable from network alerts alone."]
     if info_only:
         L.append("- Stage: suspected ingress tool transfer; requires investigation. "
                  "The signature is informational and does not show the file is malicious.")
 
     L += ["", "NEXT STEPS"]
-    steps = build_actions(descs, [src] if src else [], ([dst] if dst else []) + others)
-    steps.append("Validate the alert against proxy/DNS logs and endpoint telemetry before any containment.")
+    steps = build_actions(descs, [src] if src else [], ([dst] if dst else []) + others,
+                          hosts=hosts, users=accounts)
+    steps.append("Validate against other log sources (VPN, firewall, EDR) before any containment." if endpoint
+                 else "Validate the alert against proxy/DNS logs and endpoint telemetry before any containment.")
     L += [f"{i}. {s}" for i, s in enumerate(steps, 1)]
 
     label = {"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low", "info": "Info"}.get(sev, sev)
-    L += ["", f"RISK: {label} ({inc.get('risk_score')}/100). Network evidence only: these are indicators, "
-              "not confirmed compromise."]
+    L += ["", f"RISK: {label} ({inc.get('risk_score')}/100). "
+              + ("Indicators from log data, not confirmed compromise." if endpoint
+                 else "Network evidence only: these are indicators, not confirmed compromise.")]
     return "\n".join(L)
 
 
