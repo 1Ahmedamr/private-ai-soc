@@ -160,6 +160,14 @@ def chat():
     if not question:
         return jsonify({"error": "Empty question."}), 400
 
+    import re as _re
+    if _re.search(r"\b5\s*w'?s?\b|triage summary", question, _re.I):
+        from src.ai.fivew import answer_5w
+        answer = answer_5w(analysis, question)
+        history = current_chat_history()
+        history.append({"question": question, "answer": answer})
+        store_chat_history(history)
+        return jsonify({"answer": answer, "turn": len(history)})
     chat_history = current_chat_history()
 
     context_parts = [
