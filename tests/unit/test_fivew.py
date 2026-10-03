@@ -27,3 +27,20 @@ def test_answer_orders_by_risk_and_can_target_one_incident():
     assert both.index("INC-BBBBBBBB") < both.index("INC-AAAAAAAA")
     one = answer_5w({"incidents": [INC, other]}, "5Ws for INC-AAAAAAAA")
     assert "INC-BBBBBBBB" not in one
+
+
+def test_layout_has_all_sections_and_flow_from_detection_text():
+    inc = dict(INC, detections=[{"rule_name": "r", "description":
+        "Highly periodic connections from '172.17.5.135' to '158.255.211.126': 45 sessions, ~302s intervals."}],
+        correlation_key="ip:172.17.5.135", key_events=[])
+    out = build_5w(inc)
+    for section in ("WHO", "WHAT", "WHEN", "WHERE", "WHY / HOW", "NEXT STEPS", "RISK:"):
+        assert section in out
+    assert "Source IP (as recorded by the detection): 172.17.5.135 (internal)" in out
+    assert "Destination IP (as recorded by the detection): 158.255.211.126 (external)" in out
+    assert "block" not in out.lower() and "isolate" not in out.lower()
+
+
+def test_info_only_incident_is_not_staged_as_c2():
+    out = build_5w(INC)
+    assert "suspected ingress tool transfer" in out and "does not show the file is malicious" in out
