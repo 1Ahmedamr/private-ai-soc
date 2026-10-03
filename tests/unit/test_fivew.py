@@ -44,3 +44,31 @@ def test_layout_has_all_sections_and_flow_from_detection_text():
 def test_info_only_incident_is_not_staged_as_c2():
     out = build_5w(INC)
     assert "suspected ingress tool transfer" in out and "does not show the file is malicious" in out
+
+
+def _inc(iid, title, desc, ck, a, b, risk=50):
+    return {"incident_id": iid, "title": title, "severity": "high", "risk_score": risk,
+            "correlation_key": ck, "first_seen": a, "last_seen": b, "mitre_techniques": [],
+            "key_events": [], "detections": [{"rule_name": "r", "description": desc}]}
+
+
+def test_host_summary_leads_and_lists_external_peers_without_roles():
+    incs = [
+        _inc("INC-AAAAAAAA", "Beacon", "Highly periodic connections from '172.17.5.135' to '158.255.211.126': 45 sessions",
+             "ip:172.17.5.135", "2022-12-14T18:36:00+00:00", "2022-12-14T22:52:00+00:00", 89),
+        _inc("INC-BBBBBBBB", "Sig", "Suricata matched signature 'ET MALWARE BackConnect CnC Activity' (14 occurrence(s)).",
+             "ip:51.195.169.87", "2022-12-14T19:06:00+00:00", "2022-12-14T22:52:00+00:00", 76),
+    ]
+    hs = {"victim_ip": "172.17.5.135", "incident_ids": ["INC-AAAAAAAA", "INC-BBBBBBBB"], "highest_severity": "high"}
+    out = answer_5w({"incidents": incs, "host_summaries": [hs]}, "give me a 5Ws")
+    assert out.index("HOST 172.17.5.135") < out.index("INC-AAAAAAAA - Beacon")
+    assert "158.255.211.126" in out and "ASSESSMENT" in out and "not determined" in out
+    low = out.lower()
+    for banned in ("attacker", "victim", "compromised host"):
+        assert banned not in low
+
+
+def test_targeted_incident_question_skips_host_block():
+    incs = [_inc("INC-AAAAAAAA", "Beacon", "x", "ip:1.1.1.1", "2022-12-14T18:00:00+00:00", "2022-12-14T19:00:00+00:00")]
+    hs = {"victim_ip": "10.0.0.1", "incident_ids": ["INC-AAAAAAAA"], "highest_severity": "high"}
+    assert "HOST " not in answer_5w({"incidents": incs, "host_summaries": [hs]}, "5Ws for INC-AAAAAAAA")

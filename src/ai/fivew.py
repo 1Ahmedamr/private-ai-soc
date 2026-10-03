@@ -161,4 +161,45 @@ def answer_5w(analysis: dict, question: str) -> str:
     incidents.sort(key=lambda i: i.get("risk_score", 0), reverse=True)
     if not incidents:
         return "No incidents in this analysis."
-    return ("\n\n" + "-" * 40 + "\n\n").join(build_5w(i, analysis) for i in incidents)
+    sep = "\n\n" + "-" * 40 + "\n\n"
+    parts = [build_5w(i, analysis) for i in incidents]
+    if not wanted:  # whole-analysis question: lead with host-level summaries
+        host_blocks = [build_host_5w(hs, analysis) for hs in analysis.get("host_summaries", [])]
+        parts = host_blocks + parts
+    return sep.join(parts)
+
+
+def build_host_5w(hs: dict, analysis: dict) -> str:
+    """Host-level 5Ws for a correlated host, built only from stored evidence."""
+    from src.correlation.timeline import build_host_timeline
+    tl = build_host_timeline(hs, analysis.get("incidents", []))
+    host = hs.get("victim_ip", "")
+    ids = set(hs.get("incident_ids", []))
+    linked = [i for i in analysis.get("incidents", []) if i.get("incident_id") in ids]
+
+    external = []
+    for inc in linked:
+        src, dst = _flow(inc)
+        for ip in [src, dst] + _others(inc, {src, dst}):
+            if ip and ip != host and _valid(ip) and _scope(ip) == "external" and ip not in external:
+                external.append(ip)
+
+    a = tl["assessment"]
+    L = [f"5Ws SUMMARY - HOST {host} ({tl['count']} linked incidents)",
+         f"Highest severity: {tl['highest_severity'].upper()}", "", "WHO",
+         f"- Host of interest: {host} ({_scope(host)})"]
+    if external:
+        L.append("- External systems observed: " + ", ".join(external[:6]))
+    L.append("- Which host initiated the activity is not determined from this evidence.")
+    L += ["", "WHAT"]
+    L += [f"- {x}" for x in a["indicators"]] or ["- No corroborating indicators."]
+    if linked:
+        first = min(i["first_seen"] for i in linked)
+        last = max(i["last_seen"] for i in linked)
+        L += ["", "WHEN", f"- {_fmt(first)} -> {_fmt(last)} ({_duration(first, last)})"]
+    L += ["", "WHERE", "- Network capture only. No process, host or file telemetry was captured.",
+          "", "WHY / HOW", "- Not determinable from network alerts alone.",
+          "", "ASSESSMENT", f"- {a['text']}",
+          f"- Confidence: {a['confidence']} (network evidence only)", f"- {a['attribution']}",
+          "", f"Detailed breakdown follows ({len(linked)} incidents)."]
+    return "\n".join(L)
