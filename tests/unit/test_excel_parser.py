@@ -108,6 +108,7 @@ def test_parse_excel_end_to_end(tmp_path):
     assert first.event_type == "network_connection"
     assert first.src_ip == "185.220.101.45" and first.dst_ip == "10.0.0.5"
     assert first.dst_port == 22 and first.status == "failure" and first.host == "FW01"
+    assert first.conn_state == "S0"                               # denied attempt, as the port-scan rules expect
     assert first.timestamp == datetime(2026, 10, 2, 10, 15, 1)
     assert first.raw_data["_row"] == 3 and first.raw_data["_sheet"] == "Traffic"
 
@@ -118,6 +119,7 @@ def test_parse_excel_end_to_end(tmp_path):
     assert third.src_ip is None                                   # invalid IP dropped, kept in raw_data
     assert third.raw_data["Source IP"] == "not-an-ip"
     assert third.dst_port == 443 and third.status == "success"
+    assert third.conn_state is None                                # not a denied attempt
 
     assert report.rows_skipped_empty == 1
     assert report.timestamp_fallbacks == 1
@@ -206,3 +208,14 @@ def test_explicit_source_overrides_inference(tmp_path):
         [datetime(2026, 10, 2, 10, 15, 1), 4625, "administrator"],
     ]})
     assert parse_excel(str(path), source=EventSource.LINUX)[0].source == "linux"
+
+def test_denied_connections_to_many_ports_are_scan_shaped(tmp_path):
+    path = tmp_path / "scan.xlsx"
+    rows = [["Time", "Source IP", "Destination", "DPort", "Action"]]
+    for i, port in enumerate([21, 22, 23, 25, 80, 443]):
+        rows.append([datetime(2026, 10, 2, 10, 0, i), "185.220.101.45", "10.0.0.5", port, "DENY"])
+    _make_workbook(path, {"fw": rows})
+    events = parse_excel(str(path))
+    assert len(events) == 6
+    assert all(e.event_type == "network_connection" and e.conn_state == "S0" for e in events)
+    assert len({e.dst_port for e in events}) == 6

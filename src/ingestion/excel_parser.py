@@ -468,6 +468,11 @@ def row_to_event(
         return None
 
     classify_text = " ".join(part for part in (action, event_code) if part)
+    event_type = infer_event_type(classify_text, user, src_ip, dst_ip)
+    status = infer_status(classify_text)
+    # A denied / dropped connection attempt is the spreadsheet equivalent of Zeek's "S0"
+    # (attempt, no reply). The port-scan rules only look at conn_state == "S0".
+    conn_state = "S0" if event_type == EventType.NETWORK_CONNECTION and status == "failure" else None
 
     raw_data: Dict[str, Any] = {}
     for position, cell in enumerate(cells):
@@ -485,7 +490,7 @@ def row_to_event(
     return NormalizedEvent(
         timestamp=timestamp,
         source=source,
-        event_type=infer_event_type(classify_text, user, src_ip, dst_ip),
+        event_type=event_type,
         host=host,
         user=user,
         src_ip=src_ip,
@@ -494,7 +499,8 @@ def row_to_event(
         dst_port=dst_port,
         protocol=protocol,
         event_id=event_code or (action[:MAX_EVENT_ID_LEN] if action else None),
-        status=infer_status(classify_text),
+        status=status,
+        conn_state=conn_state,
         severity=Severity.INFO,
         raw_data=raw_data,
     )
