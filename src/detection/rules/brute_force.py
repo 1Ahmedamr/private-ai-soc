@@ -71,6 +71,8 @@ def detect_brute_force(
     for identity, group_events in grouped.items():
         burst = _find_burst_window(group_events, threshold, window)
         if burst:
+            window_start = burst[0].timestamp
+            attempts = [e for e in group_events if window_start <= e.timestamp <= window_start + window]
             technique = get_technique("T1110")
             return DetectionResult(
                 rule_name="Brute Force Detection",
@@ -80,7 +82,7 @@ def detect_brute_force(
                 mitre_technique=technique.technique_id if technique else "T1110",
                 mitre_tactic=technique.tactic if technique else "Credential Access",
                 description=(
-                    f"Brute force pattern detected: {len(burst)} failed login "
+                    f"Brute force pattern detected: {len(attempts)} failed login "
                     f"attempts for identity '{identity}' within a "
                     f"{window_minutes}-minute window."
                 ),
