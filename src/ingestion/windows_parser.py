@@ -49,6 +49,7 @@ def parse_windows_process_event(raw_event: dict) -> NormalizedEvent:
         user=_get(raw_event, "username", "user"),
         process=_get(raw_event, "process_name"),
         command=_get(raw_event, "command_line"),
+        parent_process=_get(raw_event, "parent_process", "parent_image", "ParentImage"),
         event_id=str(raw_event.get("event_id", "4688")),
         severity=Severity.INFO,
         raw_data=raw_event,

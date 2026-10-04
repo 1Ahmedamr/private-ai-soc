@@ -34,3 +34,10 @@ def test_normal_task_is_not_detected():
     results = _run({**BASE, "event_id": 4698, "task_name": "\\Backup",
                     "action": "C:\\Program Files\\Backup\\backup.exe"})
     assert results == []
+
+
+
+def test_process_event_keeps_its_parent_process():
+    events = parse_windows_events([{**BASE, "event_id": 4688, "process_name": "powershell.exe",
+                                    "parent_process": "cmd.exe", "command_line": "powershell.exe -enc SQBFAFgA"}])
+    assert events[0].parent_process == "cmd.exe"
