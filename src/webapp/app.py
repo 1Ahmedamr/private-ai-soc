@@ -40,6 +40,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 DASHBOARD_USERNAME = os.environ.get("DASHBOARD_USERNAME", "analyst")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "changeme")
+if DASHBOARD_PASSWORD == "changeme":
+    print("[WARNING] DASHBOARD_PASSWORD is not set; using the default password. Set it before sharing this app.")
 
 
 def check_credentials(username: str, password: str) -> bool:
@@ -423,4 +425,4 @@ def host_timeline(victim_ip):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001, host="127.0.0.1")
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", port=5001, host="127.0.0.1")
