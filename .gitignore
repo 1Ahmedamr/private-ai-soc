@@ -59,3 +59,6 @@ data/ioc/feodo_tracker.json
 PROJECT_SNAPSHOT*.txt
 .flask_secret
 PROJECT_SNAPSHOT*.txt
+PROJECT_SNAPSHOT*.txt
+*.xlsx
+.flask_secret
