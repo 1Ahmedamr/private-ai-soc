@@ -14,6 +14,7 @@ from src.pipeline.orchestrator import PipelineOrchestrator
 
 WATCH_DIR = Path("data/incoming")
 PROCESSED_DIR = Path("data/processed/ingested_archive")
+FAILED_DIR = Path("data/processed/failed_files")
 
 # Filename convention decides which parser to use - simple, explicit,
 # no fragile auto-detection guessing at file content.
@@ -58,14 +59,21 @@ def watch_and_ingest(orchestrator: PipelineOrchestrator, poll_seconds: int = 3) 
                 if not file_path.exists() or file_path.stat().st_size != size_1:
                     continue
                 
-                with open(file_path) as f:
-                    raw_events = json.load(f)
+                try:
+                    with open(file_path) as f:
+                        raw_events = json.load(f)
+                    if isinstance(raw_events, dict):
+                        raw_events = [raw_events]
 
-                events = parser(raw_events)
-                incidents = orchestrator.ingest(events)
-                print(f"[INGESTED] {file_path.name}: {len(events)} events -> {len(incidents)} incident(s)")
-
-                shutil.move(str(file_path), PROCESSED_DIR / file_path.name)
+                    events = parser(raw_events)
+                    incidents = orchestrator.ingest(events)
+                    print(f"[INGESTED] {file_path.name}: {len(events)} events -> {len(incidents)} incident(s)")
+                    shutil.move(str(file_path), PROCESSED_DIR / file_path.name)
+                except Exception as exc:
+                    # One bad file must never stop the watcher (and, with a restart policy, loop on it forever).
+                    FAILED_DIR.mkdir(parents=True, exist_ok=True)
+                    print(f"[FAILED] {file_path.name}: {type(exc).__name__}: {exc}")
+                    shutil.move(str(file_path), FAILED_DIR / file_path.name)
 
             time.sleep(poll_seconds)
     except KeyboardInterrupt:

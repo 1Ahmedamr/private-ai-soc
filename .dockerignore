@@ -6,3 +6,11 @@ __pycache__
 .env
 .flask_secret
 PROJECT_SNAPSHOT*.txt
+**/.DS_Store
+data/processed/*
+!data/processed/.gitkeep
+data/uploads
+data/pcaps
+data/zeek_output
+data/raw
+data/incoming
