@@ -27,7 +27,7 @@ URLHAUS_HOSTS_URL = "https://urlhaus.abuse.ch/downloads/hostfile/"
 ET_COMPROMISED_URL = "https://rules.emergingthreats.net/blockrules/compromised-ips.txt"
 
 # A list smaller than this is treated as a broken download, not a real feed.
-MIN_ENTRIES = {"feodo_tracker": 1, "urlhaus_hosts": 50, "et_compromised": 50}
+MIN_ENTRIES = {"feodo_tracker": 1, "urlhaus_hosts": 50, "emerging_threats": 50}
 
 _DOMAIN_RE = re.compile(
     r"^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$"
@@ -118,7 +118,7 @@ def fetch_urlhaus_hosts() -> list:
     return entries
 
 
-def fetch_et_compromised() -> list:
+def fetch_emerging_threats() -> list:
     """Emerging Threats compromised-IP list: one IPv4 per line."""
     entries, skipped = [], 0
     for line in _get(ET_COMPROMISED_URL).text.splitlines():
@@ -144,7 +144,7 @@ def fetch_et_compromised() -> list:
 FEEDS = [
     ("feodo_tracker", fetch_feodo),
     ("urlhaus_hosts", fetch_urlhaus_hosts),
-    ("et_compromised", fetch_et_compromised),
+    ("emerging_threats", fetch_emerging_threats),
 ]
 
 

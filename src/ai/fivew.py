@@ -159,6 +159,20 @@ def build_5w(inc: dict, analysis: dict = None) -> str:
         L.append("- Source/destination describe traffic direction only. Which host initiated the activity, "
                  "or acted as source or target of an attack, is not determined from this evidence.")
 
+    ioc = inc.get("ioc_context") or []
+    if ioc:
+        L.append("- Threat-intel listing (local lists; describes the address's reputation, "
+                 "not what it did in this incident): "
+                 + "; ".join(f"{c['ip']} in '{c['feed']}' (feed confidence {c['confidence']:.0%})"
+                              for c in ioc[:5]))
+
+    ioc = inc.get("ioc_context") or []
+    if ioc:
+        L.append("- Threat-intel listing (local lists; describes the address's reputation, "
+                 "not what it did in this incident): "
+                 + "; ".join(f"{c['ip']} in '{c['feed']}' (feed confidence {c['confidence']:.0%})"
+                              for c in ioc[:5]))
+
     L += ["", "WHAT"]
     L += [f"- {x[:240]}" for x in descs] or ["- No detection text recorded."]
     if techs:
