@@ -46,6 +46,7 @@ def load_sigma_rules(rules_dir: str = None) -> List[SigmaRule]:
         print(f"  skipped {n}: {reason}")
     return rules
 
+
 class SigmaRuleIndex:
     """
     Pre-indexes Sigma rules by BOTH product AND category.
