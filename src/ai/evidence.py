@@ -25,6 +25,7 @@ class InvestigationEvidence(BaseModel):
     attack_stage: str = ""
     affected_hosts: list = []
     accounts: list = []
+    ioc_context: list = []   # reputation context from the local IOC store; never affects scoring
 
 
 # Most advanced stage first, used to order the stages shown to the analyst.
@@ -63,6 +64,32 @@ def _get_knowledge_base() -> KnowledgeBase:
         _knowledge_base = KnowledgeBase()
         _knowledge_base.build()
     return _knowledge_base
+
+
+def build_ioc_context(ips, store=None) -> list:
+    """Reputation context for IPs that appear in the local IOC store.
+
+    This is enrichment, not detection: it never changes an incident's severity,
+    risk score or MITRE mapping, and it makes no network calls. It lets an analyst
+    see that an IP is listed even when the match alone was too weak to open an incident.
+    """
+    if store is None:
+        from src.threat_intel.ioc_store import get_ioc_store
+        store = get_ioc_store()
+    context, seen = [], set()
+    for ip in ips:
+        if not ip or ip in seen:
+            continue
+        seen.add(ip)
+        match = store.check_ip(ip)
+        if match:
+            context.append({
+                "ip": ip,
+                "feed": match.source,
+                "threat": match.threat_name,
+                "confidence": match.confidence,
+            })
+    return context
 
 
 def build_evidence(incident: Incident) -> InvestigationEvidence:
@@ -135,4 +162,5 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         attack_stage=compute_attack_stage(incident.detections),
         affected_hosts=affected_hosts[:5],
         accounts=accounts[:5],
+        ioc_context=build_ioc_context(source_ips[:5] + target_ips[:5]),
     )
