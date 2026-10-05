@@ -1,6 +1,7 @@
 # src/sigma/loader.py
 
 import yaml
+from collections import Counter
 from pathlib import Path
 from typing import List, Dict
 from src.sigma.evaluator import SigmaRule
@@ -12,7 +13,7 @@ TRUSTED_STATUSES = {"stable", "test"}
 def load_sigma_rules(rules_dir: str = None) -> List[SigmaRule]:
     directory = Path(rules_dir) if rules_dir else SIGMA_RULES_DIR
     rules = []
-    skipped = 0
+    skipped = Counter()
 
     for yaml_file in directory.rglob("*.yml"):
         try:
@@ -20,27 +21,30 @@ def load_sigma_rules(rules_dir: str = None) -> List[SigmaRule]:
                 content = yaml.safe_load(f)
 
             if not isinstance(content, dict):
-                skipped += 1
+                skipped["not a YAML mapping"] += 1
                 continue
             if "detection" not in content:
-                skipped += 1
+                skipped["no detection section"] += 1
                 continue
 
             status = content.get("status", "experimental")
             if status not in TRUSTED_STATUSES:
-                skipped += 1
+                skipped[f"status={status}"] += 1
                 continue
 
             rule = SigmaRule(content, source_file=str(yaml_file))
             rules.append(rule)
 
-        except Exception:
-            skipped += 1
+        except Exception as e:
+            skipped[f"error: {type(e).__name__}"] += 1
+            print(f"[Sigma] ERROR loading {yaml_file}: {type(e).__name__}: {e}")
             continue
 
-    print(f"[Sigma] Loaded {len(rules)} rules ({skipped} skipped) from {directory}")
+    total_skipped = sum(skipped.values())
+    print(f"[Sigma] Loaded {len(rules)} rules ({total_skipped} skipped) from {directory}")
+    for reason, n in skipped.most_common():
+        print(f"  skipped {n}: {reason}")
     return rules
-
 
 class SigmaRuleIndex:
     """
