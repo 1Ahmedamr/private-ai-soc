@@ -56,7 +56,6 @@ class AnalysisResult:
                     "priority": str(inc.priority),
                     "correlation_key": inc.correlation_key,
                     "ioc_context": _ioc_context_for(inc),
-                    "ioc_context": _ioc_context_for(inc),
                     "mitre_techniques": inc.mitre_techniques,
                     "first_seen": inc.first_seen.isoformat(),
                     "last_seen": inc.last_seen.isoformat(),
@@ -113,21 +112,6 @@ class AnalysisResult:
                 for hs in self.host_summaries
             ],
         }
-
-
-def _ioc_context_for(inc) -> list:
-    """Reputation context for the IPs an incident shows, from the local IOC store.
-
-    Structured fields only. Remote feed text (threat names) is left out on purpose:
-    this dict is what the AI chat sees, so it must not carry free text from the internet.
-    """
-    from src.ai.evidence import build_ioc_context
-    ips = []
-    if inc.correlation_key.startswith("ip:"):
-        ips.append(inc.correlation_key.split("ip:", 1)[1])
-    for e in inc.events[:20]:
-        ips += [e.src_ip, e.dst_ip]
-    return [{k: c[k] for k in ("ip", "feed", "confidence")} for c in build_ioc_context(ips)]
 
 
 def _ioc_context_for(inc) -> list:

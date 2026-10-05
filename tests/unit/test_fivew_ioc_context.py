@@ -50,3 +50,8 @@ def test_session_context_keeps_structured_fields_only(monkeypatch):
     inc = SimpleNamespace(correlation_key=f"ip:{LISTED}",
                           events=[SimpleNamespace(src_ip=LISTED, dst_ip="172.17.5.135")])
     assert file_analyzer._ioc_context_for(inc) == LISTING   # no "threat" key
+
+
+def test_listing_line_appears_exactly_once():
+    out = build_5w(dict(INC, ioc_context=LISTING))
+    assert out.count("Threat-intel listing") == 1
