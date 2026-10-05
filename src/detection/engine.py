@@ -160,40 +160,102 @@ class DetectionEngine:
     
     def run_ioc_checks(self, events: List[NormalizedEvent]) -> List[DetectionResult]:
         """
-        Checks every event's IPs and domains against the local IOC store.
-        A single IOC match per unique (src_ip, ioc_value) pair creates one
-        DetectionResult — not one per matching event, to avoid noise.
+        Checks events against the local IOC store.
+
+        Direction decides what a match means:
+          outbound (dst_ip, DNS query): one of our hosts reached a known-bad
+            destination - possible C2 or malware delivery (T1071).
+          inbound (src_ip): a known-bad address contacted us - reputation
+            context only, so no ATT&CK technique is asserted.
+          host (file hash): a known-bad file was observed on a host.
+
+        One detection per (ioc_value, ioc_type, direction), listing every
+        affected host, so the scope of a match is not hidden.
         """
-        from src.models.event_schema import Severity
+        from src.models.event_schema import EventType, Severity
         store = get_ioc_store()
-        results = []
-        seen = set()
+        direction_by_field = {
+            "src_ip": "inbound",
+            "dst_ip": "outbound",
+            "event_id": "outbound",
+            "file_hash": "host",
+        }
+        groups = {}
 
         for event in events:
-            matches = store.check_event(event)
-            for match in matches:
-                dedup_key = (match.ioc_value, match.ioc_type)
-                if dedup_key in seen:
+            for match in store.check_event(event):
+                # The queried domain is stored in event_id only for DNS events;
+                # on any other event it is just an ID such as "4625".
+                if match.matched_field == "event_id" and event.event_type != EventType.DNS_QUERY:
                     continue
-                seen.add(dedup_key)
+                direction = direction_by_field.get(match.matched_field, "outbound")
+                if direction == "inbound":
+                    affected = event.host or event.dst_ip
+                else:
+                    affected = event.host or event.src_ip
 
-                severity = Severity.HIGH if match.confidence >= 0.8 else Severity.MEDIUM
-                results.append(DetectionResult(
-                    rule_name=f"IOC Match: {match.ioc_type.upper()}",
-                    rule_id=f"SOC-IOC-{match.ioc_type.upper()}-001",
-                    triggered=True,
-                    severity=severity,
-                    mitre_technique="T1071",
-                    mitre_tactic="Command and Control",
-                    description=(
-                        f"IOC match: {match.ioc_type} '{match.ioc_value}' found in local "
-                        f"threat intel feed '{match.source}'. "
-                        f"Threat: {match.threat_name}. "
-                        f"Confidence: {match.confidence:.0%}. "
-                        f"This IP/domain has been associated with malicious activity — "
-                        f"verify against current threat intel before concluding."
-                    ),
-                    confidence=match.confidence,
-                    reopen_window_hours=168,
-                ))
+                group = groups.setdefault(
+                    (match.ioc_value, match.ioc_type, direction),
+                    {"match": match, "affected": [], "events": 0},
+                )
+                group["events"] += 1
+                if affected and affected not in group["affected"]:
+                    group["affected"].append(affected)
+
+        results = []
+        for (value, ioc_type, direction), group in groups.items():
+            match = group["match"]
+            strong = match.confidence >= 0.8
+            type_label = ioc_type.upper()
+
+            if direction == "inbound":
+                severity = Severity.MEDIUM if strong else Severity.LOW
+                technique, tactic = None, None
+                name = f"IOC Match: {type_label} (inbound)"
+                rule_id = f"SOC-IOC-{type_label}-IN-001"
+                reopen_hours = 48
+                meaning = (
+                    f"A known-bad {ioc_type} contacted this environment. This is reputation "
+                    f"context only; it does not show what the activity achieved."
+                )
+            elif direction == "outbound":
+                severity = Severity.HIGH if strong else Severity.MEDIUM
+                technique, tactic = "T1071", "Command and Control"
+                name = f"IOC Match: {type_label}"
+                rule_id = f"SOC-IOC-{type_label}-001"
+                reopen_hours = 168
+                meaning = (
+                    f"A host in this environment reached a known-bad {ioc_type}: possible "
+                    f"command and control or malware delivery. Verify against current threat "
+                    f"intel before concluding."
+                )
+            else:
+                severity = Severity.HIGH if strong else Severity.MEDIUM
+                technique, tactic = None, None
+                name = f"IOC Match: {type_label}"
+                rule_id = f"SOC-IOC-{type_label}-001"
+                reopen_hours = 168
+                meaning = f"A file with a known-bad {ioc_type} was observed on a host."
+
+            shown = group["affected"][:10]
+            extra = len(group["affected"]) - len(shown)
+            affected_text = ", ".join(shown) + (f" (+{extra} more)" if extra > 0 else "")
+
+            results.append(DetectionResult(
+                rule_name=name,
+                rule_id=rule_id,
+                triggered=True,
+                severity=severity,
+                mitre_technique=technique,
+                mitre_tactic=tactic,
+                description=(
+                    f"IOC match ({direction}): {ioc_type} '{value}' found in local threat intel "
+                    f"feed '{match.source}'. Threat: {match.threat_name}. "
+                    f"Confidence: {match.confidence:.0%}. "
+                    f"Seen in {group['events']} event(s); affected: {affected_text or 'unknown'}. "
+                    f"{meaning}"
+                ),
+                confidence=match.confidence,
+                reopen_window_hours=reopen_hours,
+            ))
         return results
