@@ -8,8 +8,8 @@
   {
     "value": "185.220.101.5",
     "type": "ip",
-    "threat_name": "Tor Exit Node / C2",
-    "confidence": 0.8
+    "threat_name": "Tor exit node (anonymizer, not confirmed malicious)",
+    "confidence": 0.5
   },
   {
     "value": "45.33.12.99",
