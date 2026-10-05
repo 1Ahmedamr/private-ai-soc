@@ -33,6 +33,7 @@ class IOCMatch:
     threat_name: str       # what threat this IOC is associated with
     confidence: float      # 0.0-1.0
     source: str            # which feed it came from
+    matched_field: str = ""   # event field that matched: src_ip, dst_ip, event_id, file_hash
 
 
 class IOCStore:
@@ -166,24 +167,23 @@ class IOCStore:
         """
         Checks all IOC-relevant fields of a NormalizedEvent.
         Returns a list of IOCMatch objects (empty if none found).
+
+        Each match records WHICH field matched (matched_field), so callers can
+        tell inbound activity (src_ip) from outbound activity (dst_ip).
         """
         matches = []
-        if event.src_ip:
-            m = self.check_ip(event.src_ip)
+        for field_name, check in (
+            ("src_ip", self.check_ip),
+            ("dst_ip", self.check_ip),
+            ("event_id", self.check_domain),   # DNS parsers store the queried domain here
+            ("file_hash", self.check_hash),
+        ):
+            value = getattr(event, field_name, None)
+            if not value:
+                continue
+            m = check(value)
             if m:
-                matches.append(m)
-        if event.dst_ip:
-            m = self.check_ip(event.dst_ip)
-            if m:
-                matches.append(m)
-        if event.event_id:
-            m = self.check_domain(event.event_id)
-            if m:
-                matches.append(m)
-        file_hash = getattr(event, "file_hash", None)
-        if file_hash:
-            m = self.check_hash(file_hash)
-            if m:
+                m.matched_field = field_name
                 matches.append(m)
         return matches
 
