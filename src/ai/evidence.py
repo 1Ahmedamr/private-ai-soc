@@ -130,7 +130,9 @@ def build_evidence(incident: Incident) -> InvestigationEvidence:
         last_seen=incident.last_seen.isoformat(),
         is_reopened_incident=len(incident.related_incident_ids) > 0,
         relevant_playbook_excerpts=relevant_chunks,
-        source_ips=source_ips,
+        source_ips=source_ips[:5],
         target_ips=target_ips[:5],
         attack_stage=compute_attack_stage(incident.detections),
+        affected_hosts=affected_hosts[:5],
+        accounts=accounts[:5],
     )
