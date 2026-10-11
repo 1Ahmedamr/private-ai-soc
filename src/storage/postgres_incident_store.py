@@ -3,6 +3,7 @@
 from typing import List, Optional
 from src.models.incident_schema import Incident, IncidentStatus
 from src.storage.postgres_db import get_pg_connection, init_pg_schema
+from src.incidents.store import IncidentIdCollision
 
 
 class PostgresIncidentStore:
@@ -13,17 +14,31 @@ class PostgresIncidentStore:
         init_pg_schema(self.conn)
 
     def save(self, incident: Incident) -> None:
+        # The update only applies when the stored row has the same identity, so a clash on the
+        # 32-bit incident ID can never silently replace another incident's evidence.
         with self.conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO incidents (incident_id, correlation_key, status, raw_json)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (incident_id) DO UPDATE SET
-                    correlation_key = EXCLUDED.correlation_key,
                     status = EXCLUDED.status,
                     raw_json = EXCLUDED.raw_json
+                WHERE incidents.correlation_key = EXCLUDED.correlation_key
                 """,
                 (incident.incident_id, incident.correlation_key, incident.status.value, incident.model_dump_json()),
+            )
+            applied = cur.rowcount
+            row = None
+            if applied == 0:
+                cur.execute("SELECT correlation_key FROM incidents WHERE incident_id = %s", (incident.incident_id,))
+                row = cur.fetchone()
+        if applied == 0:
+            self.conn.rollback()
+            stored = row[0] if row else "unknown"
+            raise IncidentIdCollision(
+                f"Incident ID {incident.incident_id} already belongs to a different incident "
+                f"(stored identity {stored!r}, new identity {incident.correlation_key!r}); not overwriting."
             )
         self.conn.commit()
 
