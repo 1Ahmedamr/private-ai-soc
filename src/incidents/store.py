@@ -5,6 +5,11 @@ from src.models.incident_schema import Incident, IncidentStatus
 from src.storage.db import get_connection, init_schema
 
 
+class IncidentIdCollision(RuntimeError):
+    """Two different incidents ended up with the same ID. Refusing to overwrite the stored
+    one: an incident's evidence must never be silently replaced by another's."""
+
+
 class IncidentStore:
     """
     Persistent, SQLite-backed incident storage.
@@ -26,17 +31,30 @@ class IncidentStore:
         init_schema(self.conn)
 
     def save(self, incident: Incident) -> None:
-        self.conn.execute(
+        # The update only applies when the stored row has the same identity. Incident IDs
+        # keep 32 bits of a UUID, so a clash is rare but possible, and an unguarded upsert
+        # would replace another incident's evidence with no error.
+        cursor = self.conn.execute(
             """
             INSERT INTO incidents (incident_id, correlation_key, status, raw_json)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(incident_id) DO UPDATE SET
-                correlation_key = excluded.correlation_key,
                 status = excluded.status,
                 raw_json = excluded.raw_json
+            WHERE incidents.correlation_key = excluded.correlation_key
             """,
             (incident.incident_id, incident.correlation_key, incident.status.value, incident.model_dump_json()),
         )
+        if cursor.rowcount == 0:
+            self.conn.rollback()
+            row = self.conn.execute(
+                "SELECT correlation_key FROM incidents WHERE incident_id = ?", (incident.incident_id,)
+            ).fetchone()
+            stored = row["correlation_key"] if row else "unknown"
+            raise IncidentIdCollision(
+                f"Incident ID {incident.incident_id} already belongs to a different incident "
+                f"(stored identity {stored!r}, new identity {incident.correlation_key!r}); not overwriting."
+            )
         self.conn.commit()
 
     def get_by_id(self, incident_id: str) -> Optional[Incident]:
