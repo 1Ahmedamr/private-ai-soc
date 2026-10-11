@@ -31,9 +31,16 @@ environment variables before running:
     export DASHBOARD_USERNAME=youranalystname
     export DASHBOARD_PASSWORD=a-real-password-not-changeme
 
-If unset, defaults to username "analyst" / password "changeme" - this
-default is for local development convenience ONLY and must be changed
-before exposing the dashboard on any shared network.
+DASHBOARD_PASSWORD is required: the dashboard refuses to start if it is unset,
+empty, or the old default "changeme". The username defaults to "analyst".
+Copy `.env.example` to `.env` (git-ignored) and fill it in, or export the
+variables as shown above. Generate a password with:
+
+    python -c "import secrets; print(secrets.token_urlsafe(18))"
+
+The dashboard uses HTTP Basic Auth, which sends credentials in a reversible
+header. It listens on 127.0.0.1 only; if you ever expose it on a network,
+put TLS in front of it.
 
 ## MITRE ATT&CK dataset (recommended)
 

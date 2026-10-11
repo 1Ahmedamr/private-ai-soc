@@ -39,16 +39,31 @@ app.secret_key = _secret
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 DASHBOARD_USERNAME = os.environ.get("DASHBOARD_USERNAME", "analyst")
-DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "changeme")
-if DASHBOARD_PASSWORD == "changeme":
-    print("[WARNING] DASHBOARD_PASSWORD is not set; using the default password. Set it before sharing this app.")
+_REJECTED_PASSWORDS = {"", "changeme"}
+
+
+def load_dashboard_password(value):
+    """The dashboard has no default password: it refuses to start without a real one.
+    A printed warning is easy to miss; a startup failure is not."""
+    if value is None or value.strip().lower() in _REJECTED_PASSWORDS:
+        raise RuntimeError(
+            "DASHBOARD_PASSWORD is not set (or is the old default 'changeme'). "
+            "Set a real password in .env or the environment before starting the dashboard. "
+            "See .env.example."
+        )
+    return value
+
+
+DASHBOARD_PASSWORD = load_dashboard_password(os.environ.get("DASHBOARD_PASSWORD"))
 
 
 def check_credentials(username: str, password: str) -> bool:
-    return (
-        secrets.compare_digest(username, DASHBOARD_USERNAME)
-        and secrets.compare_digest(password, DASHBOARD_PASSWORD)
-    )
+    # Compare bytes: compare_digest raises TypeError on non-ASCII str, which would
+    # turn a bad login into a 500. Run both comparisons so a wrong username does
+    # not answer faster than a wrong password.
+    user_ok = secrets.compare_digest((username or "").encode("utf-8"), DASHBOARD_USERNAME.encode("utf-8"))
+    pass_ok = secrets.compare_digest((password or "").encode("utf-8"), DASHBOARD_PASSWORD.encode("utf-8"))
+    return user_ok and pass_ok
 
 
 def require_auth(f):
