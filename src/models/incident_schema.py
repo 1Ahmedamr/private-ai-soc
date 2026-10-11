@@ -86,6 +86,16 @@ class Incident(BaseModel):
 
     def add_detection(self, detection: DetectionResult) -> None:
         """إضافة detection جديد للـincident وتحديث الـmetadata المرتبطة."""
+        # Idempotent: a finding is already on record when the rule, wording, severity and
+        # measured evidence are all identical. Re-processing a file (a retry or a replay)
+        # must not stack up identical detections, but a rule firing again with different
+        # evidence is new information and is kept.
+        def _finding(d):
+            return (d.rule_id, d.rule_name, d.description, d.severity,
+                    d.evidence_event_count, d.evidence_duration_seconds)
+
+        if any(_finding(d) == _finding(detection) for d in self.detections):
+            return
         self.detections.append(detection)
         if detection.mitre_technique and detection.mitre_technique not in self.mitre_techniques:
             self.mitre_techniques.append(detection.mitre_technique)

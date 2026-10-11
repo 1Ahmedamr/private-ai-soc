@@ -1,5 +1,6 @@
 # src/storage/event_store.py
 
+from collections import Counter
 from typing import List, Optional
 from datetime import datetime
 from src.models.event_schema import NormalizedEvent
@@ -37,11 +38,41 @@ class EventStore:
             (e.timestamp.isoformat(), e.user, e.src_ip, e.dst_ip, e.host, e.model_dump_json())
             for e in events
         ]
+        rows = self._without_stored_copies(rows)
+        if not rows:
+            return
         self.conn.executemany(
             "INSERT INTO events (timestamp, user, src_ip, dst_ip, host, raw_json) VALUES (?, ?, ?, ?, ?, ?)",
             rows,
         )
         self.conn.commit()
+
+    def _without_stored_copies(self, rows: list) -> list:
+        """Makes saving idempotent: re-saving events that are already stored adds nothing.
+
+        Multiset rule: if the batch holds N identical events and the store already holds M
+        copies, only the surplus (N - M) is inserted. A replayed file adds nothing, a burst of
+        identical events inside ONE file is kept in full, and events that differ anywhere
+        (including the original record inside raw_json) are never merged.
+        """
+        wanted = Counter(rows)
+        stored = Counter()
+        stamps = sorted({row[0] for row in rows})
+        for start in range(0, len(stamps), 500):
+            chunk = stamps[start:start + 500]
+            # Only "?" placeholders are interpolated into the SQL; every value is bound as a parameter.
+            marks = ",".join("?" * len(chunk))
+            query = ("SELECT timestamp, user, src_ip, dst_ip, host, raw_json FROM events "
+                     f"WHERE timestamp IN ({marks})")
+            for row in self.conn.execute(query, chunk):
+                stored[tuple(row)] += 1
+        surplus = {row: max(count - stored[row], 0) for row, count in wanted.items()}
+        fresh = []
+        for row in rows:
+            if surplus[row] > 0:
+                surplus[row] -= 1
+                fresh.append(row)
+        return fresh
 
     def get_events_by_correlation_key(
         self, correlation_key: str, since: Optional[datetime] = None

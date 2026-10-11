@@ -47,6 +47,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_user ON events(user)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_src_ip ON events(src_ip)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_host ON events(host)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS incidents (
